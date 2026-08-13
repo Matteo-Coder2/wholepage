@@ -25,7 +25,13 @@ async function shot(opts) {
   if (opts.prep) await page.evaluate(opts.prep);
   if (opts.scrollY) await page.evaluate((y) => window.scrollTo(0, y), opts.scrollY);
   await page.waitForTimeout(250);
-  await page.screenshot({ path: join(out, opts.name), fullPage: false });
+  if (opts.el) {
+    // Element screenshot: crops to actual content height — a fixed viewport
+    // leaves dead bone space inside the card border (judge finding).
+    await page.locator(opts.el).screenshot({ path: join(out, opts.name) });
+  } else {
+    await page.screenshot({ path: join(out, opts.name), fullPage: false });
+  }
   await page.close();
   console.log('  ', opts.name);
 }
@@ -34,13 +40,13 @@ if (mode === 'raw') {
   // Sticky-fence "before": three naive viewport strips of our demo article —
   // the pinned nav photographed in every strip, exactly what bad stitching does.
   for (const [i, y] of [[1, 640], [2, 1280], [3, 1920]]) {
-    await shot({ url: f('store-assets/demo-page.html'), w: 860, h: 560, dsf: 1, scrollY: y, name: `fence-${i}.png` });
+    await shot({ url: f('store-assets/demo-page.html'), w: 860, h: 560, dsf: 2, scrollY: y, name: `fence-${i}.png` });
   }
   // Popup, resting state (focus ring on Full page comes from autofocus).
-  await shot({ url: f('popup/popup.html'), w: 300, h: 424, name: 'popup-modes.png' });
+  await shot({ url: f('popup/popup.html'), w: 300, h: 424, el: 'body', name: 'popup-modes.png' });
   // Popup, mid-capture: the ruler filling tile by tile.
   await shot({
-    url: f('popup/popup.html'), w: 300, h: 300, name: 'popup-progress.png',
+    url: f('popup/popup.html'), w: 300, h: 300, el: 'body', name: 'popup-progress.png',
     prep: () => {
       document.getElementById('modes').hidden = true;
       document.getElementById('progress').hidden = false;
@@ -57,13 +63,13 @@ if (mode === 'raw') {
       document.getElementById('oversize').hidden = false;
       const img = document.createElement('img');
       img.src = '../store-assets/capture-demo.png';
-      img.style.cssText = 'display:block;width:520px;height:auto;';
+      img.style.cssText = 'display:block;width:560px;height:auto;';
       document.getElementById('stage').appendChild(img);
     },
   });
 } else {
   for (let i = 1; i <= 5; i++) {
-    await shot({ url: f(`store-assets/stage-${i}.html`), w: 1280, h: 800, dsf: 1, name: `store-${i}.png` });
+    await shot({ url: f(`store-assets/stage-${i}.html`), w: 1280, h: 800, dsf: 2, name: `store-${i}.png` });
   }
 }
 

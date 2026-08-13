@@ -23,10 +23,33 @@
   p { margin: 0 0 22px; }
   h2 { font-size: 26px; font-weight: 400; margin: 42px 0 14px; }
   figure { margin: 34px 0; }
-  .ph { border: 1px solid #23211c; height: 340px; }
-  .ph.a { background: linear-gradient(160deg, #d9e4dd 0%, #a7c4b5 55%, #5d8272 100%); }
-  .ph.b { background: linear-gradient(20deg, #e8ddc9 0%, #d2b384 60%, #8f6b3a 100%); }
-  .ph.c { background: linear-gradient(200deg, #dcdfe8 0%, #9aa5c4 55%, #4d5a85 100%); }
+  .ph { border: 1px solid #23211c; height: 360px; position: relative; overflow: hidden; }
+  .ph::after { /* fine photographic grain */
+    content: ""; position: absolute; inset: 0; opacity: .5;
+    background: repeating-linear-gradient(0deg, rgba(0,0,0,.028) 0 1px, transparent 1px 3px),
+                repeating-linear-gradient(90deg, rgba(0,0,0,.02) 0 1px, transparent 1px 3px);
+  }
+  .ph.a { /* dusk ridgelines */
+    background:
+      linear-gradient(178deg, transparent 58%, rgba(20,34,28,.85) 58.5%, #17241f 100%),
+      linear-gradient(174deg, transparent 44%, rgba(52,82,68,.75) 44.6%, rgba(35,58,48,.9) 74%, transparent 74%),
+      linear-gradient(182deg, transparent 34%, rgba(102,140,120,.5) 34.6%, rgba(74,108,90,.55) 58%, transparent 58%),
+      radial-gradient(120% 90% at 68% 8%, #f4e9c8 0%, #d8ceb2 22%, #a8b8a4 48%, #7c9484 72%, #5d8272 100%);
+  }
+  .ph.b { /* lamplit desk, amber */
+    background:
+      radial-gradient(85% 120% at 22% 0%, rgba(255,240,200,.95) 0%, rgba(238,205,140,.65) 34%, transparent 62%),
+      linear-gradient(190deg, transparent 66%, rgba(74,50,20,.85) 66.5%, #3a2812 100%),
+      linear-gradient(12deg, #8f6b3a 0%, #c49b5e 46%, #e8d3a8 90%),
+      #8f6b3a;
+  }
+  .ph.c { /* archive at dusk, blue hour */
+    background:
+      linear-gradient(88deg, transparent 0 12%, rgba(20,26,48,.55) 12% 13%, transparent 13% 30%, rgba(20,26,48,.5) 30% 31%, transparent 31% 52%, rgba(20,26,48,.55) 52% 53%, transparent 53% 76%, rgba(20,26,48,.5) 76% 77%, transparent 77%),
+      linear-gradient(185deg, transparent 62%, rgba(24,30,56,.9) 62.5%, #171d36 100%),
+      radial-gradient(110% 85% at 50% 0%, #e6e4f0 0%, #b8bcd8 34%, #7a84b0 66%, #4d5a85 100%);
+  }
+  .ph.tall { height: 430px; }
   figcaption { font: 12.5px/1.5 system-ui, sans-serif; color: #6d675c; margin-top: 9px; }
   blockquote { border-left: 3px solid #a06414; margin: 30px 0; padding: 4px 0 4px 22px; font-style: italic; font-size: 20px; }
   table { width: 100%; border-collapse: collapse; font: 14px/1.5 system-ui, sans-serif; margin: 30px 0; }
@@ -43,7 +66,7 @@
   <p class="byline">Field Notes · 14 min read</p>
   <p>A web page has no bottom. It unrolls as you pull, loads as you look, and rearranges itself the moment you stop paying attention. To keep a record of one — a receipt, a contract, a conversation, a design — you need something closer to a surveyor's habit than a camera's reflex.</p>
   <p>The oldest trick is the simplest: scroll, photograph, scroll again, and stitch the strips together like a panorama. It works exactly as well as the care taken at each seam. A pinned navigation bar photographed twelve times becomes a fence. An image that hadn't loaded yet becomes a gray hole in the record.</p>
-  <figure><div class="ph a"></div><figcaption>Fig. 1 — A long document is a landscape: you capture it in strips, and the seams must disappear.</figcaption></figure>
+  <figure><div class="ph a tall"></div><figcaption>Fig. 1 — A long document is a landscape: you capture it in strips, and the seams must disappear.</figcaption></figure>
   <h2>The seam problem</h2>
   <p>Every display draws at its own density. A page scrolled by exactly one screen has moved by one screen of <em>logical</em> pixels — but the record is kept in <em>device</em> pixels, and the ratio between the two is rarely a whole number. Rounding in the wrong place leaves a one-pixel scar at every joint; measuring instead of assuming leaves nothing.</p>
   <blockquote>“The instrument that measures the page must never change the page.”</blockquote>

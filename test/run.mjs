@@ -353,7 +353,8 @@ try {
       scroller: globalThis.__wpResultTest.state.meta.scroller,
     }));
     console.log('REAL capture:', JSON.stringify(info));
-    const dataUrl = await result.evaluate(() => globalThis.__wpResultTest.compose(Math.min(1, 1200 / globalThis.__wpResultTest.state.totalH)).toDataURL());
+    const dumpH = Number(process.env.DUMPH) || 1200; // DUMPH=4000 for hi-res store-asset captures
+    const dataUrl = await result.evaluate((h) => globalThis.__wpResultTest.compose(Math.min(1, h / globalThis.__wpResultTest.state.totalH)).toDataURL(), dumpH);
     writeFileSync(join(root, 'test', 'debug-real.png'), Buffer.from(dataUrl.split(',')[1], 'base64'));
     console.log('dumped test/debug-real.png');
     await result.close(); await page.close(); await ctx.close();
