@@ -5,7 +5,7 @@
   <link rel="stylesheet" href="popup.css">
 </head>
 <body>
-  <header><span id="logo"></span> WholePage</header>
+  <header>Wholepage<span class="v">v0.9</span></header>
   <div id="blocked" hidden>
     <p id="blocked-reason"></p>
     <p id="blocked-hint" class="hint"></p>
@@ -14,10 +14,11 @@
     <button id="mode-full" autofocus>
       <strong>Full page</strong>
       <span>Everything, top to bottom</span>
+      <kbd>↵</kbd>
     </button>
     <button id="mode-visible">
       <strong>Visible area</strong>
-      <span>Just what you see now</span>
+      <span>Just what's on screen now</span>
     </button>
     <button id="mode-area">
       <strong>Select area</strong>
@@ -25,14 +26,15 @@
     </button>
   </div>
   <div id="progress" hidden>
-    <div id="progress-text">Capturing…</div>
+    <div id="progress-text">Measuring the page…</div>
     <div id="progress-track"><div id="progress-fill"></div></div>
-    <p class="hint">Keep this tab visible — the page scrolls itself and is restored when done.</p>
+    <p class="hint">The page scrolls itself and is restored when done.</p>
   </div>
   <div id="error" hidden></div>
   <footer>
-    100% local · no account · no tracking ·
-    <a id="shortcuts-link" href="#">shortcut: Alt+Shift+P</a> ·
+    <span class="oath">Runs entirely on this computer</span>
+    No account · no cloud · no watermark ·
+    <a id="shortcuts-link" href="#">Alt+Shift+P</a> ·
     <a id="options-link" href="#">settings</a>
   </footer>
   <script src="popup.js"></script>

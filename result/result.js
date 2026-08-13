@@ -327,17 +327,18 @@ function renderCropBox() {
 
 // While dragging near the top/bottom edge of the window, scroll the page so a
 // selection can extend beyond what is currently on screen (user request).
+// Driven by a timer, not requestAnimationFrame: rAF starves when the window
+// loses focus or is occluded, silently freezing the auto-scroll mid-drag.
 function cropAutoScroll() {
   if (!cropDrag) return;
   const EDGE = 80;   // px-wide hot zone at each edge
   const TOP = 64;    // sticky action bar height
-  const MAXV = 42;   // px/frame at full proximity
+  const MAXV = 42;   // px/step at full proximity
   const y = cropDrag.lastClient.y;
   let v = 0;
   if (y > innerHeight - EDGE) v = MAXV * Math.min(1, (y - (innerHeight - EDGE)) / EDGE);
   else if (y < TOP + EDGE) v = -MAXV * Math.min(1, (TOP + EDGE - y) / EDGE);
   if (v) { window.scrollBy(0, v); renderCropBox(); }
-  cropDrag.raf = requestAnimationFrame(cropAutoScroll);
 }
 
 function cropMove(e) {
@@ -383,7 +384,7 @@ function exitCropMode() {
   window.removeEventListener('keydown', cropEsc, true);
   window.removeEventListener('mousemove', cropMove, true);
   window.removeEventListener('mouseup', cropUp, true);
-  if (cropDrag && cropDrag.raf) cancelAnimationFrame(cropDrag.raf);
+  if (cropDrag && cropDrag.timer) clearInterval(cropDrag.timer);
   cropDrag = null;
 }
 
@@ -408,14 +409,14 @@ function startCrop() {
     cropDrag = {
       startStage: toStage(e.clientX, e.clientY),
       lastClient: { x: e.clientX, y: e.clientY },
-      raf: 0,
+      timer: 0,
     };
     layer.firstChild.hidden = false;
     // Window-level listeners: the drag survives the pointer crossing the
     // sticky bar or leaving the layer while the page auto-scrolls.
     window.addEventListener('mousemove', cropMove, true);
     window.addEventListener('mouseup', cropUp, true);
-    cropDrag.raf = requestAnimationFrame(cropAutoScroll);
+    cropDrag.timer = setInterval(cropAutoScroll, 16);
     e.preventDefault();
   };
 }
@@ -464,7 +465,7 @@ async function pump() {
         $('note').hidden = false;
       } else if (msg.type === 'finalize') {
         state.finalized = true;
-        $('status').textContent = `Done — ${Math.round(state.W)}×${Math.round(state.totalH)}px`;
+        $('status').textContent = `Done — ${Math.round(state.W).toLocaleString('en-US')} × ${Math.round(state.totalH).toLocaleString('en-US')} px`;
         $('actions').hidden = false;
         if (!fitsSingle(effective())) {
           $('oversize').hidden = false;

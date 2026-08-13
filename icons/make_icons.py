@@ -7,10 +7,10 @@ Mark: a tall rounded 'page' bar with a wider capture band across its top third �
 """
 from PIL import Image, ImageDraw
 
-DARK = (16, 20, 19, 255)        # #101413 background
-PAGE = (232, 239, 236, 255)     # near-white page bar
-ACCENT_TOP = (45, 212, 167)     # #2dd4a7
-ACCENT_BOT = (20, 128, 95)      # #14805f
+INK = (22, 21, 15, 255)         # #16150F background — warm ink black
+PAGE = (241, 238, 229, 255)     # #F1EEE5 bone page bar
+TAPE = (242, 194, 0, 255)       # #F2C200 measuring-tape yellow
+TICK = (22, 21, 15, 255)        # etched ruler marks on the tape
 
 
 def vertical_gradient(draw, box, top, bottom):
@@ -28,9 +28,9 @@ def make(size: int) -> Image.Image:
     img = Image.new("RGBA", (S, S), (0, 0, 0, 0))
     d = ImageDraw.Draw(img)
 
-    # Background: dark rounded square
+    # Background: ink rounded square
     r = round(S * 0.22)
-    d.rounded_rectangle([0, 0, S - 1, S - 1], radius=r, fill=DARK)
+    d.rounded_rectangle([0, 0, S - 1, S - 1], radius=r, fill=INK)
 
     # Page bar: tall rounded rect, centered — the long page
     pw = round(S * 0.38)
@@ -51,21 +51,22 @@ def make(size: int) -> Image.Image:
             radius=lh // 2, fill=line_c,
         )
 
-    # Capture band: gradient section ACROSS the page with short scan handles —
-    # "this slice of the long page, captured"
+    # Capture band: a measuring-tape strip ACROSS the page with short handles
+    # and etched ruler ticks — "this page, measured and captured".
     bh = round(S * 0.18)
     by0 = round(S * 0.34)
     handle = round(S * 0.10)
     bx0 = px0 - handle
     bx1 = px0 + pw + handle
-    band = Image.new("RGBA", (S, S), (0, 0, 0, 0))
-    bd = ImageDraw.Draw(band)
-    vertical_gradient(bd, (bx0, by0, bx1, by0 + bh), ACCENT_TOP, ACCENT_BOT)
-    mask = Image.new("L", (S, S), 0)
-    ImageDraw.Draw(mask).rounded_rectangle(
-        [bx0, by0, bx1, by0 + bh], radius=round(bh * 0.30), fill=255
-    )
-    img.paste(band, (0, 0), mask)
+    d.rounded_rectangle([bx0, by0, bx1, by0 + bh], radius=round(bh * 0.30), fill=TAPE)
+    # Ruler ticks: alternating tall/short marks along the top edge of the tape
+    n_ticks = 7
+    tick_w = max(1, round(S * 0.012))
+    for i in range(1, n_ticks + 1):
+        tx = bx0 + round((bx1 - bx0) * i / (n_ticks + 1))
+        tall = i % 2 == 1
+        th = round(bh * (0.52 if tall else 0.30))
+        d.rectangle([tx - tick_w // 2, by0, tx + tick_w // 2, by0 + th], fill=TICK)
 
     return img.resize((size, size), Image.LANCZOS)
 

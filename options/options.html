@@ -4,45 +4,95 @@
   <meta charset="utf-8">
   <title>WholePage settings</title>
   <style>
-    :root { color-scheme: dark; }
-    body {
-      max-width: 560px;
-      margin: 40px auto;
-      padding: 0 20px;
-      background: #101413;
-      color: #e8efec;
-      font: 14px/1.6 system-ui, -apple-system, sans-serif;
+    /* WholePage instrument system: bone face, ink markings, tape yellow. */
+    :root {
+      color-scheme: light;
+      --bone: #f1eee5;
+      --ink: #16150f;
+      --tape: #f2c200;
+      --graphite: #6e6a5e;
+      --rule: #c9c3b4;
+      --mono: ui-monospace, "SF Mono", Menlo, "Cascadia Code", monospace;
     }
-    h1 { font-size: 20px; }
-    label { display: block; margin: 18px 0 6px; font-weight: 600; }
+    * { box-sizing: border-box; }
+    body {
+      max-width: 540px;
+      margin: 48px auto;
+      padding: 0 20px;
+      background: var(--bone);
+      color: var(--ink);
+      font: 14px/1.6 -apple-system, system-ui, sans-serif;
+    }
+    h1 {
+      font-family: var(--mono);
+      font-size: 15px;
+      font-weight: 700;
+      letter-spacing: .14em;
+      text-transform: uppercase;
+      border-bottom: 1px solid var(--ink);
+      padding-bottom: 10px;
+    }
+    label {
+      display: block;
+      margin: 26px 0 6px;
+      font-family: var(--mono);
+      font-size: 10.5px;
+      font-weight: 700;
+      letter-spacing: .13em;
+      text-transform: uppercase;
+    }
     input, select {
       font: inherit;
       width: 100%;
-      padding: 8px 10px;
-      border-radius: 8px;
-      border: 1px solid #33403a;
-      background: #1a201e;
+      padding: 8px 11px;
+      border: 1px solid var(--ink);
+      border-radius: 3px;
+      background: #faf8f2;
       color: inherit;
     }
-    .hint { color: #9db3ab; font-size: 12.5px; margin-top: 4px; }
-    #saved { color: #2dd4a7; margin-left: 10px; opacity: 0; transition: opacity .3s; }
+    input { font-family: var(--mono); font-size: 13px; }
+    input:focus-visible, select:focus-visible { outline: 2px solid var(--tape); outline-offset: 1px; }
+    .hint { color: var(--graphite); font-size: 12.5px; margin-top: 5px; }
+    .hint code { font-family: var(--mono); background: #e9e5d8; padding: 0 4px; border-radius: 2px; }
+    #saved { font-family: var(--mono); font-size: 12px; margin-left: 10px; opacity: 0; transition: opacity .3s; }
     button {
-      margin-top: 22px;
+      margin-top: 26px;
       font: inherit;
-      padding: 8px 20px;
-      border-radius: 8px;
-      border: none;
-      background: #2dd4a7;
-      color: #06281e;
-      font-weight: 600;
+      padding: 7px 22px;
+      border: 1px solid var(--ink);
+      border-radius: 3px;
+      background: var(--tape);
+      color: var(--ink);
+      font-weight: 650;
       cursor: pointer;
+      box-shadow: 0 2px 0 var(--ink);
     }
-    footer { margin-top: 40px; color: #6f8279; font-size: 12.5px; border-top: 1px solid #1c2320; padding-top: 14px; }
-    a { color: #8fb3a6; }
+    button:hover { background: #ffd21a; }
+    button:active { transform: translateY(2px); box-shadow: 0 0 0 var(--ink); }
+    button:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+    footer {
+      margin-top: 48px;
+      color: var(--graphite);
+      font-size: 12.5px;
+      border-top: 1px solid var(--rule);
+      padding-top: 16px;
+    }
+    footer .oath {
+      display: block;
+      font-family: var(--mono);
+      font-size: 10px;
+      letter-spacing: .13em;
+      text-transform: uppercase;
+      color: var(--ink);
+      margin-bottom: 6px;
+    }
+    a { color: var(--graphite); text-underline-offset: 2px; }
+    a:hover { color: var(--ink); }
+    @media (prefers-reduced-motion: reduce) { button:active { transform: none; } }
   </style>
 </head>
 <body>
-  <h1>WholePage settings</h1>
+  <h1>Wholepage settings</h1>
 
   <label for="filenameTemplate">File name template</label>
   <input id="filenameTemplate" spellcheck="false">
@@ -58,9 +108,10 @@
   <button id="save">Save</button><span id="saved">Saved ✓</span>
 
   <footer>
+    <span class="oath">Runs entirely on this computer</span>
     Keyboard shortcuts are managed by Chrome:
     <a href="#" id="shortcuts">chrome://extensions/shortcuts</a><br><br>
-    WholePage makes zero network requests, collects nothing, and never will.
+    Settings are stored on this device only. WholePage collects nothing, and never will.
   </footer>
   <script src="options.js"></script>
 </body>

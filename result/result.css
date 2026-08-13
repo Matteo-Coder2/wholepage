@@ -1,18 +1,24 @@
+/* WholePage result — the worktable. A print lies on a bone surface, framed in
+   ink; every number is a mono readout; one yellow key does the main job.
+   Tokens: --bone #F1EEE5 · --ink #16150F · --tape #F2C200 · --graphite #6E6A5E
+           --rule #C9C3B4 · --brick #A44A24 (warnings) */
 :root {
-  color-scheme: dark;
-  --bg: #101413;
-  --panel: #1a201e;
-  --ink: #e8efec;
-  --dim: #9db3ab;
-  --accent: #2dd4a7;
-  --accent-ink: #06281e;
+  color-scheme: light;
+  --bone: #f1eee5;
+  --ink: #16150f;
+  --tape: #f2c200;
+  --graphite: #6e6a5e;
+  --rule: #c9c3b4;
+  --brick: #a44a24;
+  --mono: ui-monospace, "SF Mono", Menlo, "Cascadia Code", monospace;
 }
 * { box-sizing: border-box; }
+[hidden] { display: none !important; } /* display:flex must never defeat the hidden attribute */
 body {
   margin: 0;
-  background: var(--bg);
+  background: var(--bone);
   color: var(--ink);
-  font: 14px/1.5 system-ui, -apple-system, sans-serif;
+  font: 14px/1.5 -apple-system, system-ui, sans-serif;
   min-height: 100vh;
   display: flex;
   flex-direction: column;
@@ -23,87 +29,107 @@ body {
   z-index: 10;
   display: flex;
   align-items: center;
-  gap: 16px;
-  padding: 10px 18px;
-  background: var(--panel);
-  border-bottom: 1px solid #2a332f;
+  gap: 14px;
+  padding: 10px 20px;
+  background: var(--bone);
+  border-bottom: 1px solid var(--ink);
 }
-#brand { font-weight: 650; letter-spacing: .2px; }
-#status { color: var(--dim); flex: 1; }
+#brand {
+  font-family: var(--mono);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+}
+#status {
+  flex: 1;
+  font-family: var(--mono);
+  font-size: 12.5px;
+  color: var(--graphite);
+}
 #actions { display: flex; gap: 8px; }
 button {
   font: inherit;
-  padding: 7px 16px;
-  border-radius: 8px;
-  border: 1px solid #33403a;
-  background: #222b27;
+  font-size: 13.5px;
+  padding: 6px 15px;
+  border: 1px solid var(--ink);
+  border-radius: 3px;
+  background: #faf8f2;
   color: var(--ink);
   cursor: pointer;
+  box-shadow: 0 2px 0 var(--ink);
 }
-button:hover { background: #2a3530; }
-#btn-copy, #btn-pdf2 {
-  background: var(--accent);
-  border-color: var(--accent);
-  color: var(--accent-ink);
-  font-weight: 600;
+button:hover { background: #fffdf7; }
+button:active { transform: translateY(2px); box-shadow: 0 0 0 var(--ink); }
+button:focus-visible { outline: 2px solid var(--tape); outline-offset: 2px; }
+#btn-copy, #btn-pdf2 { background: var(--tape); font-weight: 650; }
+#btn-copy:hover, #btn-pdf2:hover { background: #ffd21a; }
+button:disabled { opacity: .45; cursor: not-allowed; box-shadow: none; }
+#note, #oversize, #crop-tip {
+  margin: 16px 20px 0;
+  padding: 10px 14px;
+  border: 1px solid var(--ink);
+  border-left: 4px solid var(--tape);
+  border-radius: 3px;
+  background: #faf8f2;
+  max-width: 880px;
 }
-#btn-copy:hover, #btn-pdf2:hover { filter: brightness(1.08); }
-button:disabled { opacity: .45; cursor: not-allowed; }
-#note, #oversize {
-  margin: 14px 18px 0;
-  padding: 10px 16px;
-  border-radius: 10px;
-  background: #23301c;
-  border: 1px solid #3c5230;
-  color: #cfe6b8;
-  max-width: 900px;
-}
-#oversize { background: #2d2a1c; border-color: #575030; color: #e6dcb0; }
-#oversize button { margin: 6px 8px 2px 0; }
-#note.warn { background: #33231a; border-color: #6b4a2c; color: #f0c9a0; }
+#note.warn { border-left-color: var(--brick); color: var(--brick); }
+#oversize p { margin: 0 0 8px; }
+#oversize button { margin: 2px 8px 2px 0; }
 #crop-tip {
   position: sticky;
-  top: 56px;
+  top: 55px;
   z-index: 9;
-  margin: 14px 18px 0;
-  padding: 10px 16px;
-  border-radius: 10px;
-  background: #0e2b22;
-  border: 1px solid var(--accent);
-  color: #bdf3e2;
-  max-width: 900px;
 }
-body.cropping #stage { opacity: .75; }
-body.cropping #stage-wrap { cursor: crosshair; }
-#stage-wrap { position: relative; padding: 18px; flex: 1; }
+#stage-wrap { position: relative; padding: 26px 20px 30px; flex: 1; }
+/* The print on the table: ink frame, hard offset shadow — a mounted photograph,
+   not a floating card. */
 #stage {
   position: relative;
   margin: 0 auto;
   width: fit-content;
   max-width: 100%;
-  box-shadow: 0 8px 40px rgba(0,0,0,.5);
-  border-radius: 4px;
-  overflow: hidden;
   background: #fff;
+  border: 1px solid var(--ink);
+  box-shadow: 6px 6px 0 rgba(22, 21, 15, .18);
 }
 #stage canvas { display: block; max-width: 100%; height: auto; }
 #crop-layer {
   position: absolute;
-  inset: 18px;
+  inset: 26px 20px 30px;
   cursor: crosshair;
   z-index: 5;
 }
 #crop-layer .box {
   position: absolute;
-  border: 1.5px dashed var(--accent);
-  background: rgba(45,212,167,.08);
+  border: 1.5px dashed var(--ink);
+  background: rgba(242, 194, 0, .14);
   pointer-events: none;
 }
 #trust {
-  padding: 12px 18px 18px;
-  color: var(--dim);
-  font-size: 12.5px;
+  padding: 12px 20px 18px;
+  border-top: 1px solid var(--rule);
+  color: var(--graphite);
+  font-size: 12px;
   text-align: center;
 }
+#trust b {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: .13em;
+  text-transform: uppercase;
+  color: var(--ink);
+  font-weight: 700;
+}
 .flash { animation: flash .8s ease; }
-@keyframes flash { 0% { outline: 3px solid var(--accent); } 100% { outline: 3px solid transparent; } }
+@keyframes flash {
+  0% { outline: 3px solid var(--tape); outline-offset: 2px; }
+  100% { outline: 3px solid transparent; outline-offset: 2px; }
+}
+body.cropping #stage { opacity: .8; }
+body.cropping #stage-wrap { cursor: crosshair; }
+@media (prefers-reduced-motion: reduce) {
+  .flash { animation: none; }
+  button:active { transform: none; }
+}
