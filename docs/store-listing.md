@@ -17,7 +17,7 @@
 >
 > • Sticky headers appear once at the top — not stamped down the page like a fence
 > • Lazy-loaded images are scrolled into existence before capture, so nothing comes out as a blank box
-> • App-style pages that scroll inside a panel (chat apps, dashboards) capture their full content, not one frozen frame
+> • App-style pages that scroll inside a panel (chat apps, dashboards) record their full content, not one frozen frame
 > • Very long pages are never silently cut off: you choose a multi-page PDF, numbered slices, or a downscaled image
 > • Sharp at any display scale and zoom — no seams, no double edges
 > • Pages that keep loading forever are detected and captured honestly, with a note

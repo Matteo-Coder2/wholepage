@@ -1,0 +1,35 @@
+/* Shared stage styles for store screenshots — WholePage instrument system. */
+* { box-sizing: border-box; margin: 0; }
+:root {
+  --bone: #f1eee5; --ink: #16150f; --tape: #f2c200;
+  --graphite: #6e6a5e; --rule: #c9c3b4; --brick: #a44a24;
+  --mono: ui-monospace, "SF Mono", Menlo, monospace;
+}
+body {
+  width: 1280px; height: 800px; overflow: hidden;
+  background: var(--bone); color: var(--ink);
+  font: 17px/1.5 -apple-system, system-ui, sans-serif;
+  display: flex; flex-direction: column;
+}
+.plate {
+  font-family: var(--mono); font-size: 15px; font-weight: 700;
+  letter-spacing: .16em; text-transform: uppercase;
+}
+.plate .v { color: var(--graphite); font-weight: 400; margin-left: 10px; font-size: 12px; }
+h1 { font-size: 54px; line-height: 1.06; font-weight: 700; letter-spacing: -.015em; }
+.sub { font-size: 20px; color: var(--graphite); max-width: 520px; }
+.oath {
+  display: inline-block; font-family: var(--mono); font-size: 12px; font-weight: 700;
+  letter-spacing: .14em; text-transform: uppercase;
+  border: 1.5px solid var(--ink); padding: 9px 16px; border-radius: 3px;
+  box-shadow: 0 3px 0 var(--ink); background: #faf8f2;
+}
+.frame { border: 1.5px solid var(--ink); box-shadow: 8px 8px 0 rgba(22,21,15,.16); background: #fff; }
+.cap {
+  font-family: var(--mono); font-size: 12px; letter-spacing: .06em;
+  color: var(--graphite); margin-top: 12px;
+}
+.cap b { color: var(--ink); }
+.tapechip { display: inline-block; background: var(--tape); border: 1.5px solid var(--ink);
+  border-radius: 3px; padding: 3px 10px; font-weight: 700; font-size: 14px; }
+.ruleline { height: 1px; background: var(--ink); }

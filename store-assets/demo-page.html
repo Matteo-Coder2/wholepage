@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Field Notes — Measuring the Web</title>
+<style>
+  /* Demo article used ONLY for store screenshots: every pixel is ours.
+     Deliberately looks like a real publication so captures read as real use. */
+  * { box-sizing: border-box; }
+  body { margin: 0; font: 17px/1.65 Georgia, serif; color: #23211c; background: #fff; }
+  nav {
+    position: sticky; top: 0; z-index: 5;
+    display: flex; gap: 26px; align-items: center;
+    background: #fff; border-bottom: 1px solid #23211c;
+    padding: 14px 36px; font: 700 13px/1 system-ui, sans-serif; letter-spacing: .12em;
+  }
+  nav .mark { background: #23211c; color: #fff; padding: 4px 9px; }
+  nav a { color: #23211c; text-decoration: none; text-transform: uppercase; font-weight: 400; }
+  main { max-width: 680px; margin: 0 auto; padding: 56px 24px 90px; }
+  .kicker { font: 700 12px/1 system-ui, sans-serif; letter-spacing: .18em; text-transform: uppercase; color: #a06414; }
+  h1 { font-size: 44px; line-height: 1.12; margin: 14px 0 10px; font-weight: 400; }
+  .byline { font: 13px/1 system-ui, sans-serif; color: #6d675c; margin-bottom: 34px; }
+  p { margin: 0 0 22px; }
+  h2 { font-size: 26px; font-weight: 400; margin: 42px 0 14px; }
+  figure { margin: 34px 0; }
+  .ph { border: 1px solid #23211c; height: 340px; }
+  .ph.a { background: linear-gradient(160deg, #d9e4dd 0%, #a7c4b5 55%, #5d8272 100%); }
+  .ph.b { background: linear-gradient(20deg, #e8ddc9 0%, #d2b384 60%, #8f6b3a 100%); }
+  .ph.c { background: linear-gradient(200deg, #dcdfe8 0%, #9aa5c4 55%, #4d5a85 100%); }
+  figcaption { font: 12.5px/1.5 system-ui, sans-serif; color: #6d675c; margin-top: 9px; }
+  blockquote { border-left: 3px solid #a06414; margin: 30px 0; padding: 4px 0 4px 22px; font-style: italic; font-size: 20px; }
+  table { width: 100%; border-collapse: collapse; font: 14px/1.5 system-ui, sans-serif; margin: 30px 0; }
+  th, td { border: 1px solid #c9c3b4; padding: 8px 12px; text-align: left; }
+  th { background: #f1eee5; font-weight: 700; }
+  footer { border-top: 1px solid #23211c; margin-top: 70px; padding-top: 22px; font: 13px/1.6 system-ui, sans-serif; color: #6d675c; }
+</style>
+</head>
+<body>
+<nav><span class="mark">FN</span><a href="#">Essays</a><a href="#">Instruments</a><a href="#">Archive</a><a href="#">About</a></nav>
+<main>
+  <p class="kicker">Instruments · No. 12</p>
+  <h1>Measuring the web, one page at a time</h1>
+  <p class="byline">Field Notes · 14 min read</p>
+  <p>A web page has no bottom. It unrolls as you pull, loads as you look, and rearranges itself the moment you stop paying attention. To keep a record of one — a receipt, a contract, a conversation, a design — you need something closer to a surveyor's habit than a camera's reflex.</p>
+  <p>The oldest trick is the simplest: scroll, photograph, scroll again, and stitch the strips together like a panorama. It works exactly as well as the care taken at each seam. A pinned navigation bar photographed twelve times becomes a fence. An image that hadn't loaded yet becomes a gray hole in the record.</p>
+  <figure><div class="ph a"></div><figcaption>Fig. 1 — A long document is a landscape: you capture it in strips, and the seams must disappear.</figcaption></figure>
+  <h2>The seam problem</h2>
+  <p>Every display draws at its own density. A page scrolled by exactly one screen has moved by one screen of <em>logical</em> pixels — but the record is kept in <em>device</em> pixels, and the ratio between the two is rarely a whole number. Rounding in the wrong place leaves a one-pixel scar at every joint; measuring instead of assuming leaves nothing.</p>
+  <blockquote>“The instrument that measures the page must never change the page.”</blockquote>
+  <p>The same discipline applies to what the page does while being measured. Animations pause. Videos hold their frame. The pinned bar appears once, where it belongs, and the record shows the page as a reader would remember it — not as a machine happened to photograph it.</p>
+  <figure><div class="ph b"></div><figcaption>Fig. 2 — Content below the fold exists only after it has been seen; a good record scrolls first and photographs second.</figcaption></figure>
+  <h2>What honest records refuse to do</h2>
+  <p>They refuse to guess. A page that keeps growing as it is scrolled is recorded to a stated depth, and the record says so. A page wider than the window is captured at its visible width, and the record says that too. Nothing is trimmed in silence.</p>
+  <table>
+    <tr><th>Condition</th><th>Honest behavior</th></tr>
+    <tr><td>Endless feed</td><td>Capture what is loaded; say how much</td></tr>
+    <tr><td>Very long page</td><td>Offer pages, slices, or scale — never cut</td></tr>
+    <tr><td>Pinned toolbar</td><td>Once, at the top</td></tr>
+    <tr><td>Unloaded images</td><td>Wait, then record</td></tr>
+  </table>
+  <p>None of this is exotic engineering. It is bookkeeping — the patient kind, done the same way every time, checked against a ruler that never flatters. A record you can trust is mostly the accumulation of small refusals to approximate.</p>
+  <figure><div class="ph c"></div><figcaption>Fig. 3 — The archive at dusk: pages, measured and shelved.</figcaption></figure>
+  <p>So the next time a page matters — the order confirmation, the apartment listing, the paragraph that will be edited by morning — take its measure properly. Top to bottom, seam by seam, nothing missing and nothing twice.</p>
+  <footer>Field Notes is a demonstration publication. Every pixel of this page belongs to the WholePage project and exists so our store screenshots photograph content we own.</footer>
+</main>
+</body>
+</html>
