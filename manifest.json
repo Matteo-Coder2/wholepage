@@ -1,10 +1,15 @@
 {
   "manifest_version": 3,
   "name": "WholePage – Full Page Screenshot & Screen Capture",
-  "version": "0.9.0",
+  "version": "1.0.0",
   "description": "Full-page screenshots that actually work. 100% local, no account, no watermark, no tracking. Open source, minimal permissions.",
   "minimum_chrome_version": "116",
-  "permissions": ["activeTab", "scripting", "downloads", "storage"],
+  "permissions": [
+    "activeTab",
+    "scripting",
+    "downloads",
+    "storage"
+  ],
   "background": {
     "service_worker": "sw/service-worker.js",
     "type": "module"
@@ -28,8 +33,11 @@
   "options_page": "options/options.html",
   "commands": {
     "_execute_action": {
-      "suggested_key": { "default": "Alt+Shift+P" },
+      "suggested_key": {
+        "default": "Alt+Shift+P"
+      },
       "description": "Open WholePage capture"
     }
-  }
+  },
+  "homepage_url": "https://github.com/Matteo-Coder2/wholepage"
 }

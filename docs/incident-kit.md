@@ -11,7 +11,7 @@ panic.
 > WholePage is temporarily unavailable in the Chrome Web Store while we resolve a
 > policy/IP dispute with the store. **This is not a security issue** — WholePage
 > runs entirely on your device, makes zero network requests, and its full source
-> is public at [repo]. If Chrome disabled the extension in your browser, you can
+> is public at https://github.com/Matteo-Coder2/wholepage. If Chrome disabled the extension in your browser, you can
 > re-enable it at chrome://extensions. WholePage remains available on
 > [Edge Add-ons link]. Updates here as we have them.
 

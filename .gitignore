@@ -4,5 +4,6 @@ test/.profile/
 test/debug-*.png
 .claude-flow/
 **/.claude-flow/
+dist/
 *.zip
 .DS_Store
