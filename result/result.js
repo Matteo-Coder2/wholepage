@@ -282,8 +282,32 @@ async function saveScaled() {
 }
 
 // ---------- crop ----------
+// Explicit MODE with visible feedback: entering crop shows an instruction
+// banner, dims the image, and arms Esc — "I clicked Crop and nothing happened"
+// was a real user report against the invisible-layer version.
+let cropping = false;
+
+function exitCropMode() {
+  cropping = false;
+  document.body.classList.remove('cropping');
+  $('crop-tip').hidden = true;
+  $('crop-layer').hidden = true;
+  $('btn-crop').textContent = 'Crop';
+  window.removeEventListener('keydown', cropEsc, true);
+}
+
+function cropEsc(e) {
+  if (e.key === 'Escape') { e.preventDefault(); exitCropMode(); flash('Crop cancelled'); }
+}
+
 function startCrop() {
+  if (cropping) { exitCropMode(); flash('Crop cancelled'); return; }
   if (!fitsSingle(effective())) { $('oversize').hidden = false; return; }
+  cropping = true;
+  document.body.classList.add('cropping');
+  $('crop-tip').hidden = false;
+  $('btn-crop').textContent = 'Cancel crop';
+  window.addEventListener('keydown', cropEsc, true);
   const layer = $('crop-layer');
   layer.hidden = false;
   layer.innerHTML = '<div class="box" hidden></div>';
@@ -309,10 +333,10 @@ function startCrop() {
   };
   layer.onmouseup = (e) => {
     dragging = false;
-    layer.hidden = true;
+    exitCropMode();
     const a = toDev(Math.min(sx, e.clientX), Math.min(sy, e.clientY));
     const b = toDev(Math.max(sx, e.clientX), Math.max(sy, e.clientY));
-    if (b.x - a.x < 8 || b.y - a.y < 8) return;
+    if (b.x - a.x < 8 || b.y - a.y < 8) { flash('Selection too small — crop cancelled'); return; }
     state.crop = { x: Math.round(a.x), y: Math.round(a.y), w: Math.round(b.x - a.x), h: Math.round(b.y - a.y) };
     const view = compose();
     $('stage').replaceChildren(view);
@@ -360,7 +384,11 @@ async function pump() {
       if (msg.type === 'meta') {
         state.meta = msg;
         document.title = `WholePage – ${msg.title || 'capture'}`;
-        if (msg.note) { $('note').textContent = msg.note; $('note').hidden = false; }
+        if (msg.note) {
+          $('note').textContent = (msg.noteLevel === 'warn' ? '⚠ ' : '') + msg.note;
+          $('note').classList.toggle('warn', msg.noteLevel === 'warn');
+          $('note').hidden = false;
+        }
       } else if (msg.type === 'tile') {
         await onTile(msg);
       } else if (msg.type === 'finalize') {

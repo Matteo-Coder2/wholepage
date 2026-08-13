@@ -20,11 +20,18 @@ async function preflight() {
   } catch (_) { /* service worker waking up; buttons stay enabled */ }
 }
 
-function start(mode) {
+async function start(mode) {
   $('modes').hidden = true;
   $('progress').hidden = false;
   $('progress-text').textContent = mode === 'full' ? 'Capturing full page…' : 'Capturing…';
-  chrome.runtime.sendMessage({ type: 'start-capture', mode }).catch(() => {});
+  // Name our own tab explicitly — the SW must never have to guess which tab
+  // the user meant.
+  let tabId = null;
+  try {
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    tabId = tab && tab.id;
+  } catch (_) {}
+  chrome.runtime.sendMessage({ type: 'start-capture', mode, tabId }).catch(() => {});
   if (mode !== 'full') setTimeout(() => window.close(), 150);
 }
 

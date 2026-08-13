@@ -251,6 +251,28 @@ async function launch(dsf) {
 }
 
 try {
+  // REAL=<url>: one-off capture of a live site, dumps test/debug-real.png.
+  // Used for the manual pre-release smoke list (ChatGPT, Wikipedia, Amazon…).
+  if (process.env.REAL) {
+    const ctx = await launch(0);
+    const { page, result } = await capture(ctx, process.env.REAL);
+    const info = await result.evaluate(() => ({
+      s: globalThis.__wpResultTest.state.s,
+      W: globalThis.__wpResultTest.state.W,
+      H: globalThis.__wpResultTest.state.totalH,
+      tiles: globalThis.__wpResultTest.state.received,
+      note: globalThis.__wpResultTest.state.meta.note || '',
+      scroller: globalThis.__wpResultTest.state.meta.scroller,
+    }));
+    console.log('REAL capture:', JSON.stringify(info));
+    const dataUrl = await result.evaluate(() => globalThis.__wpResultTest.compose(Math.min(1, 1200 / globalThis.__wpResultTest.state.totalH)).toDataURL());
+    writeFileSync(join(root, 'test', 'debug-real.png'), Buffer.from(dataUrl.split(',')[1], 'base64'));
+    console.log('dumped test/debug-real.png');
+    await result.close(); await page.close(); await ctx.close();
+    server.close();
+    process.exit(0);
+  }
+
   const only = process.env.ONLY; // e.g. ONLY=ruler for fast iteration
   const want = (n) => !only || only === n;
 

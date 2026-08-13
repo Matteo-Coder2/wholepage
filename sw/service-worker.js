@@ -73,7 +73,8 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   }
   if (msg && msg.type === 'start-capture') {
     (async () => {
-      const tab = await activeTab();
+      // The popup names its own tab explicitly — never re-derive it here.
+      const tab = msg.tabId != null ? await chrome.tabs.get(msg.tabId) : await activeTab();
       sendResponse({ started: true });
       await runCapture(tab, msg.mode);
     })();
@@ -82,11 +83,9 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   return false;
 });
 
-chrome.commands.onCommand.addListener(async (command) => {
-  const tab = await activeTab();
-  if (command === 'capture-full-page') await runCapture(tab, 'full');
-  if (command === 'capture-visible') await runCapture(tab, 'visible');
-});
+// NOTE: no custom chrome.commands. Chrome grants activeTab ONLY for
+// _execute_action (which opens the popup) — a custom command shortcut would
+// run without page access and silently degrade to a viewport capture.
 
 /** Open the result tab (in the background — the captured tab must stay focused). */
 async function openResult(captureId, tab) {
@@ -101,6 +100,7 @@ async function runCapture(tab, mode) {
   const captureId = `${tab.id}-${Date.now().toString(36)}`;
   let resultTab = null;
   let prepped = false;
+  let stage = 'starting';
   try {
     const restricted = await checkRestricted(tab);
     if (restricted.restricted) {
@@ -121,14 +121,20 @@ async function runCapture(tab, mode) {
 
     // ---- Everything else needs the content scripts.
     try {
-      await chrome.scripting.executeScript({ target: { tabId: tab.id }, files: CONTENT_FILES });
+      try {
+        await chrome.scripting.executeScript({ target: { tabId: tab.id }, files: CONTENT_FILES });
+      } catch (first) {
+        await new Promise((r) => setTimeout(r, 300)); // transient tab states: one retry
+        await chrome.scripting.executeScript({ target: { tabId: tab.id }, files: CONTENT_FILES });
+      }
     } catch (err) {
+      console.error('[WholePage] inject failed:', err);
       const info = explainInjectionFailure(tab.url || '', String(err && err.message));
       if (info.canVisible) {
-        // Honest fallback: capture what we can and say why.
+        // Honest fallback: capture what we can and say why — loudly.
         const dataUrl = await captureTile(tab.windowId);
         resultTab = await openResult(captureId, tab);
-        sendToResult(captureId, { type: 'meta', mode: 'visible', title: tab.title || 'page', url: tab.url, tiles: 1, note: `${info.reason} ${info.hint}` });
+        sendToResult(captureId, { type: 'meta', mode: 'visible', title: tab.title || 'page', url: tab.url, tiles: 1, noteLevel: 'warn', note: `${info.reason} ${info.hint} [detail: ${String(err && err.message).slice(0, 200)}]` });
         sendToResult(captureId, { type: 'tile', index: 0, actualY: 0, dataUrl });
         sendToResult(captureId, { type: 'finalize' });
         await chrome.tabs.update(resultTab.id, { active: true });
@@ -151,11 +157,18 @@ async function runCapture(tab, mode) {
       return;
     }
 
-    // ---- Full page.
+    // ---- Full page. Stage names feed the failure note — a fallback must say
+    // exactly which stage died, never just shrug (pain #17).
+    stage = 'measure';
     const m = await sendToTab(tab.id, { wp: 'measure' });
+    if (m && m.error) throw new Error('measure: ' + m.error);
     prepped = true; // from here on, always restore
+    stage = 'freeze';
     await sendToTab(tab.id, { wp: 'freeze' }); // animations/transitions/videos off
+    stage = 'lazy-load priming';
     const prime = await sendToTab(tab.id, { wp: 'prime' }); // lazy-load pass; returns final height + growth flag
+    if (!prime || prime.error || !prime.totalCss) throw new Error('priming: ' + ((prime && prime.error) || 'no result'));
+    stage = 'fixed-element scan';
     await sendToTab(tab.id, { wp: 'mark-fixed' }); // walk AFTER priming: catches scroll-swapped sticky headers
 
     const totalCss = prime.totalCss;
@@ -175,6 +188,7 @@ async function runCapture(tab, mode) {
     });
 
     for (let i = 0; i < positions.length; i++) {
+      stage = `tile ${i + 1}/${positions.length}`;
       const res = await sendToTab(tab.id, { wp: 'scroll-to', y: positions[i], settle: true });
       if (i === 1) await sendToTab(tab.id, { wp: 'hide-fixed' }); // visible in tile 1 only (pain #4)
       const dataUrl = await captureTile(tab.windowId);
@@ -189,7 +203,8 @@ async function runCapture(tab, mode) {
     await setBadge(tab.id, '');
     await chrome.tabs.update(resultTab.id, { active: true });
   } catch (err) {
-    const reason = String((err && err.message) || err);
+    const reason = `at stage "${stage}": ` + String((err && err.message) || err);
+    console.error('[WholePage] capture failed', reason, err);
     // Fallback chain: if full-page failed mid-way, deliver the visible area with the reason.
     try {
       if (prepped) { await sendToTab(tab.id, { wp: 'restore' }); prepped = false; }
@@ -198,7 +213,7 @@ async function runCapture(tab, mode) {
       if (!resultTab) resultTab = await openResult(captureId, tab);
       const dataUrl = await captureTile(tab.windowId).catch(() => null);
       if (dataUrl) {
-        sendToResult(captureId, { type: 'meta', mode: 'visible', title: tab.title || 'page', url: tab.url, tiles: 1, note: `Full-page capture failed (${reason}), so WholePage captured the visible area instead.` });
+        sendToResult(captureId, { type: 'meta', mode: 'visible', title: tab.title || 'page', url: tab.url, tiles: 1, noteLevel: 'warn', note: `Full-page capture failed ${reason} — WholePage captured the visible area instead. Please report this at the project page; the quoted stage pinpoints the bug.` });
         sendToResult(captureId, { type: 'tile', index: 0, actualY: 0, dataUrl });
         sendToResult(captureId, { type: 'finalize' });
         await chrome.tabs.update(resultTab.id, { active: true });

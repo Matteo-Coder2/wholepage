@@ -60,6 +60,21 @@ button:disabled { opacity: .45; cursor: not-allowed; }
 }
 #oversize { background: #2d2a1c; border-color: #575030; color: #e6dcb0; }
 #oversize button { margin: 6px 8px 2px 0; }
+#note.warn { background: #33231a; border-color: #6b4a2c; color: #f0c9a0; }
+#crop-tip {
+  position: sticky;
+  top: 56px;
+  z-index: 9;
+  margin: 14px 18px 0;
+  padding: 10px 16px;
+  border-radius: 10px;
+  background: #0e2b22;
+  border: 1px solid var(--accent);
+  color: #bdf3e2;
+  max-width: 900px;
+}
+body.cropping #stage { opacity: .75; }
+body.cropping #stage-wrap { cursor: crosshair; }
 #stage-wrap { position: relative; padding: 18px; flex: 1; }
 #stage {
   position: relative;
