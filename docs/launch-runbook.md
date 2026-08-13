@@ -19,6 +19,15 @@ with a credit card and 2FA. Total: ~45 minutes of clicking, then waiting.
    contact email, and verify the email when prompted.
    "Non-trader" status is fine (FireShot and GoFullPage both use it).
 
+### Homepage vs. website verification (verified 2026-08-13)
+
+The **Homepage URL** on the listing is just a displayed link — a GitHub repo is
+fine and has no effect on review. **Website verification** (Search Console) is a
+separate optional step that only adds the "By <site>" attribution; it cannot be
+done for github.com and is safely skipped at launch. Review speed is determined
+by the permission profile — MV3 + activeTab-only is the fastest review class
+(reports of minutes-to-hours; 90% of all submissions within 3 days).
+
 ## 2. Chrome submission (~20 min)
 
 1. Dashboard → **+ New item** → upload `dist/wholepage-1.0.0.zip`
