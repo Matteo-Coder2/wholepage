@@ -1,0 +1,394 @@
+// Result page: progressive stitcher + exports.
+// Stitching happens HERE (a visible extension page), not in the service worker:
+// it can't be idle-killed, has full canvas/OPFS access, and the user literally
+// watches the page assemble — the honest progress bar (pain #11).
+'use strict';
+
+const BAND_H = 8192;           // device px per band canvas (memory discipline, pain #8)
+const MAX_SIDE = 16384;        // Chrome canvas per-side practical limit
+const MAX_AREA = 200e6;        // stay under the ~268MP canvas area ceiling with margin
+const SLICE_H = 16000;         // ZIP slice height
+
+const $ = (id) => document.getElementById(id);
+const captureId = location.hash.slice(1);
+
+const state = {
+  meta: null,
+  s: null,               // device px per CSS px (measured, never assumed — pain #16)
+  W: 0,                  // output width, device px
+  totalH: 0,             // output height, device px
+  bands: [],             // [{canvas, ctx, y}]
+  cursorY: 0,
+  received: 0,
+  finalized: false,
+  crop: null,            // {x, y, w, h} device px
+  croppedView: null,
+  settings: { filenameTemplate: '{title} {date}', jpegQuality: 0.92 },
+  opfsDir: null,
+};
+
+chrome.storage.sync.get(state.settings).then((s) => { state.settings = s; });
+
+// ---------- band plumbing ----------
+function bandFor(y) {
+  const idx = Math.floor(y / BAND_H);
+  while (state.bands.length <= idx) {
+    const start = state.bands.length * BAND_H;
+    const h = Math.min(BAND_H, state.totalH - start);
+    if (h <= 0) break;
+    const canvas = document.createElement('canvas');
+    canvas.width = state.W;
+    canvas.height = h;
+    const ctx = canvas.getContext('2d', { alpha: false });
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(0, 0, canvas.width, canvas.height); // alpha:false canvases start BLACK
+    $('stage').appendChild(canvas);
+    state.bands.push({ canvas, ctx, y: start });
+  }
+  return state.bands[idx] || null;
+}
+
+/** Draw a source rect of the bitmap at output row destY, across band boundaries. */
+function drawToBands(bmp, srcX, srcY, w, h, destY) {
+  let done = 0;
+  while (done < h) {
+    const y = destY + done;
+    const band = bandFor(y);
+    if (!band) break;
+    const inBandY = y - band.y;
+    const chunk = Math.min(h - done, band.canvas.height - inBandY);
+    if (chunk <= 0) break;
+    band.ctx.drawImage(bmp, srcX, srcY + done, w, chunk, 0, inBandY, w, chunk);
+    done += chunk;
+  }
+}
+
+// ---------- tile geometry ----------
+async function onTile(msg) {
+  const bmp = await createImageBitmap(await (await fetch(msg.dataUrl)).blob());
+  persistTile(msg.index, msg.dataUrl); // crash-safety, fire and forget
+  const m = state.meta;
+
+  if (state.s === null) {
+    // Empirical scale: absorbs DPR × browser zoom × OS scaling in one number.
+    state.s = m.innerWidthCss ? bmp.width / m.innerWidthCss : 1;
+    if (m.mode === 'full') {
+      state.W = Math.min(bmp.width, Math.round(m.widthCss * state.s));
+      state.totalH = computeTotalH(m);
+    } else if (m.mode === 'area') {
+      state.W = Math.round(m.cropCss.w * state.s);
+      state.totalH = Math.round(m.cropCss.h * state.s);
+    } else {
+      state.W = bmp.width;
+      state.totalH = bmp.height;
+    }
+  }
+
+  if (m.mode === 'visible') {
+    drawToBands(bmp, 0, 0, state.W, state.totalH, 0);
+  } else if (m.mode === 'area') {
+    drawToBands(bmp, Math.round(m.cropCss.x * state.s), Math.round(m.cropCss.y * state.s), state.W, state.totalH, 0);
+  } else if (m.scroller === 'element') {
+    drawInnerTile(bmp, msg);
+  } else {
+    drawWindowTile(bmp, msg);
+  }
+
+  (state.tileLog || (state.tileLog = [])).push({ i: msg.index, actualY: msg.actualY, h: bmp.height });
+  bmp.close();
+  state.received++;
+  $('status').textContent = `Assembling… tile ${state.received} of ${m.tiles}`;
+}
+
+function computeTotalH(m) {
+  if (m.scroller === 'element') {
+    const r = m.scrollerRect;
+    const top = Math.round(r.top * state.s);
+    const bottom = Math.round((m.pageViewportCss - r.bottom) * state.s);
+    return top + Math.round(m.totalCss * state.s) + Math.max(0, bottom);
+  }
+  return Math.round(m.totalCss * state.s);
+}
+
+function drawWindowTile(bmp, msg) {
+  let destY = Math.round(msg.actualY * state.s);
+  let srcTop = 0;
+  if (destY < state.cursorY) {         // final tile overlaps: crop the SOURCE top
+    srcTop = state.cursorY - destY;
+    destY = state.cursorY;
+  }
+  const drawH = Math.min(bmp.height - srcTop, state.totalH - destY);
+  if (drawH <= 0) return;
+  drawToBands(bmp, 0, srcTop, state.W, drawH, destY);
+  state.cursorY = destY + drawH;
+}
+
+function drawInnerTile(bmp, msg) {
+  // App-shell geometry: shell chrome appears once (tile 0), inner scroller content
+  // flows beneath it, bottom chrome appended after the last tile (pain #9).
+  const m = state.meta;
+  const rTop = Math.round(m.scrollerRect.top * state.s);
+  const rBot = Math.round(m.scrollerRect.bottom * state.s);
+  const innerEnd = rTop + Math.round(m.totalCss * state.s);
+
+  if (msg.index === 0) {
+    const h = Math.min(rBot, state.totalH);
+    drawToBands(bmp, 0, 0, state.W, h, 0);
+    state.cursorY = h;
+  } else {
+    let destY = rTop + Math.round(msg.actualY * state.s);
+    let srcTop = rTop;
+    if (destY < state.cursorY) { srcTop += state.cursorY - destY; destY = state.cursorY; }
+    const drawH = Math.min(rBot - srcTop, innerEnd - destY);
+    if (drawH > 0) {
+      drawToBands(bmp, 0, srcTop, state.W, drawH, destY);
+      state.cursorY = destY + drawH;
+    }
+  }
+  if (msg.index === m.tiles - 1 && bmp.height > rBot) {
+    drawToBands(bmp, 0, rBot, state.W, bmp.height - rBot, innerEnd); // bottom chrome
+  }
+}
+
+// ---------- composition & exports ----------
+function effective() {
+  const c = state.crop;
+  return c || { x: 0, y: 0, w: state.W, h: state.totalH };
+}
+function fitsSingle(r, scale = 1) {
+  const w = r.w * scale; const h = r.h * scale;
+  return w <= MAX_SIDE && h <= MAX_SIDE && w * h <= MAX_AREA;
+}
+
+function compose(scale = 1) {
+  const r = effective();
+  const canvas = document.createElement('canvas');
+  canvas.width = Math.round(r.w * scale);
+  canvas.height = Math.round(r.h * scale);
+  const ctx = canvas.getContext('2d', { alpha: false });
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  for (const band of state.bands) {
+    const top = Math.max(r.y, band.y);
+    const bot = Math.min(r.y + r.h, band.y + band.canvas.height);
+    if (bot <= top) continue;
+    ctx.drawImage(
+      band.canvas,
+      r.x, top - band.y, r.w, bot - top,
+      0, Math.round((top - r.y) * scale), Math.round(r.w * scale), Math.round((bot - top) * scale)
+    );
+  }
+  return canvas;
+}
+
+function toBlob(canvas, type, quality) {
+  return new Promise((res, rej) => canvas.toBlob((b) => (b ? res(b) : rej(new Error('encode failed'))), type, quality));
+}
+
+function filename(ext) {
+  const t = state.settings.filenameTemplate || '{title} {date}';
+  const now = new Date();
+  const pad = (n) => String(n).padStart(2, '0');
+  const date = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())} ${pad(now.getHours())}.${pad(now.getMinutes())}.${pad(now.getSeconds())}`;
+  let host = '';
+  try { host = new URL(state.meta.url).hostname; } catch (_) {}
+  const raw = t.replaceAll('{title}', state.meta.title || 'page').replaceAll('{date}', date).replaceAll('{host}', host);
+  return raw.replace(/[\\/:*?"<>|\x00-\x1f]/g, '-').slice(0, 120).trim() + '.' + ext;
+}
+
+async function download(blob, name) {
+  const url = URL.createObjectURL(blob);
+  try {
+    await chrome.downloads.download({ url, filename: name });
+    flash(`Saved: ${name}`);
+  } finally {
+    setTimeout(() => URL.revokeObjectURL(url), 60000);
+  }
+}
+
+function flash(text) {
+  $('status').textContent = text;
+  $('stage').classList.remove('flash');
+  void $('stage').offsetWidth;
+  $('stage').classList.add('flash');
+}
+
+async function savePng() {
+  if (!fitsSingle(effective())) { $('oversize').hidden = false; return; }
+  await download(await toBlob(compose(), 'image/png'), filename('png'));
+}
+
+async function copyImage() {
+  if (!fitsSingle(effective())) { $('oversize').hidden = false; return; }
+  const blob = await toBlob(compose(), 'image/png');
+  await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
+  flash('Copied to clipboard ✓');
+}
+
+async function savePdf() {
+  const r = effective();
+  const wCss = r.w / (state.s || 1);
+  const pageWPt = wCss * 0.75;
+  const pageHPt = pageWPt * Math.SQRT2; // A-series aspect
+  const chunkH = Math.max(200, Math.round(r.h === 0 ? 1 : (pageHPt / pageWPt) * r.w));
+  const pages = [];
+  for (let y = 0; y < r.h; y += chunkH) {
+    const h = Math.min(chunkH, r.h - y);
+    const canvas = document.createElement('canvas');
+    canvas.width = r.w;
+    canvas.height = h;
+    const ctx = canvas.getContext('2d', { alpha: false });
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(0, 0, r.w, h);
+    for (const band of state.bands) {
+      const top = Math.max(r.y + y, band.y);
+      const bot = Math.min(r.y + y + h, band.y + band.canvas.height);
+      if (bot <= top) continue;
+      ctx.drawImage(band.canvas, r.x, top - band.y, r.w, bot - top, 0, top - (r.y + y), r.w, bot - top);
+    }
+    const jpeg = new Uint8Array(await (await toBlob(canvas, 'image/jpeg', state.settings.jpegQuality)).arrayBuffer());
+    pages.push({ jpeg, wPx: r.w, hPx: h, wPt: pageWPt, hPt: (h / r.w) * pageWPt });
+  }
+  await download(WPPdf.build(pages), filename('pdf'));
+}
+
+async function saveZip() {
+  const r = effective();
+  const files = [];
+  let n = 1;
+  for (let y = 0; y < r.h; y += SLICE_H) {
+    const h = Math.min(SLICE_H, r.h - y);
+    const canvas = document.createElement('canvas');
+    canvas.width = r.w;
+    canvas.height = h;
+    const ctx = canvas.getContext('2d', { alpha: false });
+    for (const band of state.bands) {
+      const top = Math.max(r.y + y, band.y);
+      const bot = Math.min(r.y + y + h, band.y + band.canvas.height);
+      if (bot <= top) continue;
+      ctx.drawImage(band.canvas, r.x, top - band.y, r.w, bot - top, 0, top - (r.y + y), r.w, bot - top);
+    }
+    files.push({ name: `slice-${String(n++).padStart(2, '0')}.png`, data: new Uint8Array(await (await toBlob(canvas, 'image/png')).arrayBuffer()) });
+  }
+  await download(WPZip.build(files), filename('zip'));
+}
+
+async function saveScaled() {
+  const r = effective();
+  let scale = 1;
+  while (!fitsSingle(r, scale)) scale *= 0.75;
+  await download(await toBlob(compose(scale), 'image/png'), filename('png'));
+  flash(`Saved downscaled to ${Math.round(scale * 100)}% (original was too tall for one image)`);
+}
+
+// ---------- crop ----------
+function startCrop() {
+  if (!fitsSingle(effective())) { $('oversize').hidden = false; return; }
+  const layer = $('crop-layer');
+  layer.hidden = false;
+  layer.innerHTML = '<div class="box" hidden></div>';
+  const box = layer.firstChild;
+  const stageRect = () => $('stage').getBoundingClientRect();
+  let sx = 0; let sy = 0; let dragging = false;
+  const toDev = (clientX, clientY) => {
+    const sr = stageRect();
+    const scale = state.W / sr.width;
+    return {
+      x: Math.max(0, Math.min(state.W, (clientX - sr.left) * scale)),
+      y: Math.max(0, Math.min(state.totalH, (clientY - sr.top) * scale)),
+    };
+  };
+  layer.onmousedown = (e) => { dragging = true; sx = e.clientX; sy = e.clientY; box.hidden = false; };
+  layer.onmousemove = (e) => {
+    if (!dragging) return;
+    const lr = layer.getBoundingClientRect();
+    box.style.left = Math.min(sx, e.clientX) - lr.left + 'px';
+    box.style.top = Math.min(sy, e.clientY) - lr.top + 'px';
+    box.style.width = Math.abs(e.clientX - sx) + 'px';
+    box.style.height = Math.abs(e.clientY - sy) + 'px';
+  };
+  layer.onmouseup = (e) => {
+    dragging = false;
+    layer.hidden = true;
+    const a = toDev(Math.min(sx, e.clientX), Math.min(sy, e.clientY));
+    const b = toDev(Math.max(sx, e.clientX), Math.max(sy, e.clientY));
+    if (b.x - a.x < 8 || b.y - a.y < 8) return;
+    state.crop = { x: Math.round(a.x), y: Math.round(a.y), w: Math.round(b.x - a.x), h: Math.round(b.y - a.y) };
+    const view = compose();
+    $('stage').replaceChildren(view);
+    state.croppedView = view;
+    $('btn-reset').hidden = false;
+    flash('Cropped — Reset to undo');
+  };
+}
+
+function resetCrop() {
+  state.crop = null;
+  state.croppedView = null;
+  $('stage').replaceChildren(...state.bands.map((b) => b.canvas));
+  $('btn-reset').hidden = true;
+  flash('Crop removed');
+}
+
+// ---------- crash-safety tile persistence (OPFS) ----------
+async function persistTile(index, dataUrl) {
+  try {
+    if (!state.opfsDir) {
+      const root = await navigator.storage.getDirectory();
+      const dir = await root.getDirectoryHandle('captures', { create: true });
+      state.opfsDir = await dir.getDirectoryHandle(captureId, { create: true });
+    }
+    const fh = await state.opfsDir.getFileHandle(`tile-${index}.png`, { create: true });
+    const w = await fh.createWritable();
+    await w.write(await (await fetch(dataUrl)).blob());
+    await w.close();
+  } catch (_) { /* persistence is best-effort */ }
+}
+
+// ---------- wiring ----------
+const port = chrome.runtime.connect({ name: 'wp-result:' + captureId });
+const queue = [];
+let processing = false;
+port.onMessage.addListener((msg) => { queue.push(msg); pump(); });
+
+async function pump() {
+  if (processing) return;
+  processing = true;
+  while (queue.length) {
+    const msg = queue.shift();
+    try {
+      if (msg.type === 'meta') {
+        state.meta = msg;
+        document.title = `WholePage – ${msg.title || 'capture'}`;
+        if (msg.note) { $('note').textContent = msg.note; $('note').hidden = false; }
+      } else if (msg.type === 'tile') {
+        await onTile(msg);
+      } else if (msg.type === 'finalize') {
+        state.finalized = true;
+        $('status').textContent = `Done — ${Math.round(state.W)}×${Math.round(state.totalH)}px`;
+        $('actions').hidden = false;
+        if (!fitsSingle(effective())) {
+          $('oversize').hidden = false;
+          $('scale-note').textContent = '';
+        }
+      } else if (msg.type === 'fatal') {
+        $('status').textContent = 'Capture failed: ' + msg.reason;
+      }
+    } catch (err) {
+      $('status').textContent = 'Problem while assembling: ' + String((err && err.message) || err);
+    }
+  }
+  processing = false;
+}
+
+$('btn-copy').onclick = () => copyImage().catch((e) => flash('Copy failed: ' + e.message));
+$('btn-png').onclick = () => savePng().catch((e) => flash('Save failed: ' + e.message));
+$('btn-pdf').onclick = () => savePdf().catch((e) => flash('PDF failed: ' + e.message));
+$('btn-pdf2').onclick = () => savePdf().catch((e) => flash('PDF failed: ' + e.message));
+$('btn-zip').onclick = () => saveZip().catch((e) => flash('ZIP failed: ' + e.message));
+$('btn-scaled').onclick = () => saveScaled().catch((e) => flash('Save failed: ' + e.message));
+$('btn-crop').onclick = startCrop;
+$('btn-reset').onclick = resetCrop;
+
+// Test hook for the regression harness (pixel assertions run in-page).
+globalThis.__wpResultTest = { state, compose, effective };

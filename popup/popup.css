@@ -1,0 +1,72 @@
+:root { color-scheme: dark; }
+body {
+  width: 280px;
+  margin: 0;
+  background: #101413;
+  color: #e8efec;
+  font: 13.5px/1.45 system-ui, -apple-system, sans-serif;
+}
+header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 14px 8px;
+  font-weight: 650;
+  letter-spacing: .2px;
+}
+#logo {
+  width: 16px; height: 16px;
+  border-radius: 4px;
+  background: linear-gradient(160deg, #2dd4a7 0%, #14805f 100%);
+  display: inline-block;
+}
+#modes { display: flex; flex-direction: column; gap: 6px; padding: 4px 12px 10px; }
+#modes button {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1px;
+  font: inherit;
+  text-align: left;
+  padding: 9px 12px;
+  border-radius: 10px;
+  border: 1px solid #2a332f;
+  background: #1a201e;
+  color: inherit;
+  cursor: pointer;
+}
+#modes button:hover { background: #222b27; border-color: #2dd4a7; }
+#modes button span { color: #9db3ab; font-size: 12px; }
+#modes button:disabled { opacity: .4; cursor: not-allowed; }
+#blocked, #error {
+  margin: 4px 12px 10px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: #2d241c;
+  border: 1px solid #574530;
+  color: #e6cfae;
+}
+#blocked p, #error p { margin: 0 0 6px; }
+.hint { color: #9db3ab; font-size: 12px; margin: 4px 0 0; }
+#progress { padding: 6px 14px 12px; }
+#progress-track {
+  height: 6px;
+  background: #1a201e;
+  border-radius: 999px;
+  overflow: hidden;
+  margin-top: 8px;
+}
+#progress-fill {
+  height: 100%;
+  width: 0%;
+  background: #2dd4a7;
+  transition: width .3s ease;
+}
+footer {
+  padding: 8px 14px 12px;
+  color: #6f8279;
+  font-size: 11.5px;
+  border-top: 1px solid #1c2320;
+}
+footer a { color: #8fb3a6; text-decoration: none; }
+footer a:hover { text-decoration: underline; }

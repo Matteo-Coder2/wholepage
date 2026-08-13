@@ -1,0 +1,38 @@
+{
+  "manifest_version": 3,
+  "name": "WholePage – Full Page Screenshot & Screen Capture",
+  "version": "0.9.0",
+  "description": "Full-page screenshots that actually work. 100% local, no account, no watermark, no tracking. Open source, activeTab-only.",
+  "minimum_chrome_version": "116",
+  "permissions": ["activeTab", "scripting", "downloads", "storage"],
+  "background": {
+    "service_worker": "sw/service-worker.js",
+    "type": "module"
+  },
+  "action": {
+    "default_popup": "popup/popup.html",
+    "default_title": "WholePage – capture this page",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "32": "icons/icon32.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
+  },
+  "icons": {
+    "16": "icons/icon16.png",
+    "32": "icons/icon32.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  "options_page": "options/options.html",
+  "commands": {
+    "capture-full-page": {
+      "suggested_key": { "default": "Alt+Shift+P" },
+      "description": "Capture the full page"
+    },
+    "capture-visible": {
+      "description": "Capture the visible area"
+    }
+  }
+}

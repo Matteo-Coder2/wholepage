@@ -1,0 +1,17 @@
+<!DOCTYPE html><html><head><meta charset="utf-8"><style>
+  body { margin: 0; }
+  .band { height: 100px; display: flex; align-items: center; padding-left: 20px;
+          font: 700 24px monospace; color: rgba(0,0,0,.55); }
+</style></head><body>
+<script>
+  // 300 bands of 100px = 30,000px. Band color is a deterministic function of its
+  // index so the harness can assert "label N sits at output row N*100*s".
+  for (let i = 0; i < 300; i++) {
+    const d = document.createElement('div');
+    d.className = 'band';
+    d.style.background = `hsl(${(i * 47) % 360} 80% 60%)`;
+    d.textContent = i * 100;
+    document.body.appendChild(d);
+  }
+</script>
+</body></html>

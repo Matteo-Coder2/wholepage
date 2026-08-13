@@ -1,0 +1,25 @@
+<!DOCTYPE html><html><head><meta charset="utf-8"><style>
+  html, body { margin: 0; height: 100%; overflow: hidden; }
+  #app { display: flex; flex-direction: column; height: 100vh; }
+  #hdr { height: 60px; background: rgb(0,150,140); flex: none; }
+  #scroller { flex: 1; overflow-y: auto; }
+  #ftr { height: 40px; background: rgb(255,140,0); flex: none; }
+  .row { height: 100px; }
+</style></head><body>
+<div id="app">
+  <div id="hdr"></div>
+  <div id="scroller"></div>
+  <div id="ftr"></div>
+</div>
+<script>
+  // App shell: window does NOT scroll; the real scroller is #scroller (8,000px).
+  // Naive tools capture one frozen frame here (category pain #9).
+  const sc = document.getElementById('scroller');
+  for (let i = 0; i < 80; i++) {
+    const d = document.createElement('div');
+    d.className = 'row';
+    d.style.background = `hsl(${(i * 61) % 360} 70% 65%)`;
+    sc.appendChild(d);
+  }
+</script>
+</body></html>

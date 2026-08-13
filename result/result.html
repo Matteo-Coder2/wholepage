@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>WholePage capture</title>
+  <link rel="stylesheet" href="result.css">
+</head>
+<body>
+  <header id="bar">
+    <div id="brand">WholePage</div>
+    <div id="status" role="status">Assembling capture…</div>
+    <div id="actions" hidden>
+      <button id="btn-copy" title="Copy image to clipboard">Copy</button>
+      <button id="btn-png" title="Save as PNG">Save PNG</button>
+      <button id="btn-pdf" title="Save as multi-page PDF">Save PDF</button>
+      <button id="btn-crop" title="Crop the capture">Crop</button>
+      <button id="btn-reset" title="Undo crop" hidden>Reset</button>
+    </div>
+  </header>
+  <div id="note" hidden></div>
+  <div id="oversize" hidden>
+    <p>This capture is taller than a single image file can be. Choose an export — nothing is ever cut off silently:</p>
+    <button id="btn-pdf2">Multi-page PDF (recommended)</button>
+    <button id="btn-zip">PNG slices (ZIP)</button>
+    <button id="btn-scaled">Single PNG, downscaled <span id="scale-note"></span></button>
+  </div>
+  <main id="stage-wrap"><div id="stage"></div><div id="crop-layer" hidden></div></main>
+  <footer id="trust">
+    Processed entirely on your device — WholePage makes zero network requests, has no account, and never watermarks.
+  </footer>
+  <script src="pdf.js"></script>
+  <script src="zip.js"></script>
+  <script src="result.js"></script>
+</body>
+</html>

@@ -1,0 +1,21 @@
+<!DOCTYPE html><html><head><meta charset="utf-8"><style>
+  body { margin: 0; }
+  .chunk { height: 250px; }
+</style></head><body>
+<script>
+  // Infinite feed: appends 1,000px of content whenever the bottom nears.
+  // The capture must terminate with an honest note, never loop forever.
+  function addChunk() {
+    for (let i = 0; i < 4; i++) {
+      const d = document.createElement('div');
+      d.className = 'chunk';
+      d.style.background = `hsl(${Math.floor(Math.random() * 360)} 60% 70%)`;
+      document.body.appendChild(d);
+    }
+  }
+  for (let i = 0; i < 3; i++) addChunk();
+  addEventListener('scroll', () => {
+    if (innerHeight + scrollY > document.body.scrollHeight - 1500) addChunk();
+  });
+</script>
+</body></html>

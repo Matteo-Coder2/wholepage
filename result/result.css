@@ -1,0 +1,94 @@
+:root {
+  color-scheme: dark;
+  --bg: #101413;
+  --panel: #1a201e;
+  --ink: #e8efec;
+  --dim: #9db3ab;
+  --accent: #2dd4a7;
+  --accent-ink: #06281e;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font: 14px/1.5 system-ui, -apple-system, sans-serif;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+#bar {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 10px 18px;
+  background: var(--panel);
+  border-bottom: 1px solid #2a332f;
+}
+#brand { font-weight: 650; letter-spacing: .2px; }
+#status { color: var(--dim); flex: 1; }
+#actions { display: flex; gap: 8px; }
+button {
+  font: inherit;
+  padding: 7px 16px;
+  border-radius: 8px;
+  border: 1px solid #33403a;
+  background: #222b27;
+  color: var(--ink);
+  cursor: pointer;
+}
+button:hover { background: #2a3530; }
+#btn-copy, #btn-pdf2 {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-ink);
+  font-weight: 600;
+}
+#btn-copy:hover, #btn-pdf2:hover { filter: brightness(1.08); }
+button:disabled { opacity: .45; cursor: not-allowed; }
+#note, #oversize {
+  margin: 14px 18px 0;
+  padding: 10px 16px;
+  border-radius: 10px;
+  background: #23301c;
+  border: 1px solid #3c5230;
+  color: #cfe6b8;
+  max-width: 900px;
+}
+#oversize { background: #2d2a1c; border-color: #575030; color: #e6dcb0; }
+#oversize button { margin: 6px 8px 2px 0; }
+#stage-wrap { position: relative; padding: 18px; flex: 1; }
+#stage {
+  position: relative;
+  margin: 0 auto;
+  width: fit-content;
+  max-width: 100%;
+  box-shadow: 0 8px 40px rgba(0,0,0,.5);
+  border-radius: 4px;
+  overflow: hidden;
+  background: #fff;
+}
+#stage canvas { display: block; max-width: 100%; height: auto; }
+#crop-layer {
+  position: absolute;
+  inset: 18px;
+  cursor: crosshair;
+  z-index: 5;
+}
+#crop-layer .box {
+  position: absolute;
+  border: 1.5px dashed var(--accent);
+  background: rgba(45,212,167,.08);
+  pointer-events: none;
+}
+#trust {
+  padding: 12px 18px 18px;
+  color: var(--dim);
+  font-size: 12.5px;
+  text-align: center;
+}
+.flash { animation: flash .8s ease; }
+@keyframes flash { 0% { outline: 3px solid var(--accent); } 100% { outline: 3px solid transparent; } }

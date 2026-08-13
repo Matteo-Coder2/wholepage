@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>WholePage settings</title>
+  <style>
+    :root { color-scheme: dark; }
+    body {
+      max-width: 560px;
+      margin: 40px auto;
+      padding: 0 20px;
+      background: #101413;
+      color: #e8efec;
+      font: 14px/1.6 system-ui, -apple-system, sans-serif;
+    }
+    h1 { font-size: 20px; }
+    label { display: block; margin: 18px 0 6px; font-weight: 600; }
+    input, select {
+      font: inherit;
+      width: 100%;
+      padding: 8px 10px;
+      border-radius: 8px;
+      border: 1px solid #33403a;
+      background: #1a201e;
+      color: inherit;
+    }
+    .hint { color: #9db3ab; font-size: 12.5px; margin-top: 4px; }
+    #saved { color: #2dd4a7; margin-left: 10px; opacity: 0; transition: opacity .3s; }
+    button {
+      margin-top: 22px;
+      font: inherit;
+      padding: 8px 20px;
+      border-radius: 8px;
+      border: none;
+      background: #2dd4a7;
+      color: #06281e;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    footer { margin-top: 40px; color: #6f8279; font-size: 12.5px; border-top: 1px solid #1c2320; padding-top: 14px; }
+    a { color: #8fb3a6; }
+  </style>
+</head>
+<body>
+  <h1>WholePage settings</h1>
+
+  <label for="filenameTemplate">File name template</label>
+  <input id="filenameTemplate" spellcheck="false">
+  <p class="hint">Placeholders: <code>{title}</code> page title · <code>{date}</code> date &amp; time · <code>{host}</code> site domain</p>
+
+  <label for="jpegQuality">PDF image quality</label>
+  <select id="jpegQuality">
+    <option value="0.85">Smaller files</option>
+    <option value="0.92">Balanced (recommended)</option>
+    <option value="0.98">Maximum quality</option>
+  </select>
+
+  <button id="save">Save</button><span id="saved">Saved ✓</span>
+
+  <footer>
+    Keyboard shortcuts are managed by Chrome:
+    <a href="#" id="shortcuts">chrome://extensions/shortcuts</a><br><br>
+    WholePage makes zero network requests, collects nothing, and never will.
+  </footer>
+  <script src="options.js"></script>
+</body>
+</html>

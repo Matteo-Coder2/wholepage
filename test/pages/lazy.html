@@ -1,0 +1,23 @@
+<!DOCTYPE html><html><head><meta charset="utf-8"><style>
+  body { margin: 0; background: #fff; }
+  .ph { height: 300px; margin: 20px; background: rgb(128,128,128); }
+  .loaded { background: rgb(0,80,255) !important; }
+</style></head><body>
+<script>
+  // IntersectionObserver-gated content: gray placeholder until scrolled into view.
+  // A capture without a priming pass ships gray boxes (category pain #5).
+  const io = new IntersectionObserver((es) => {
+    for (const e of es) if (e.isIntersecting) {
+      const el = e.target;
+      setTimeout(() => el.classList.add('loaded'), 120); // simulated fetch latency
+      io.unobserve(el);
+    }
+  });
+  for (let i = 0; i < 36; i++) {
+    const d = document.createElement('div');
+    d.className = 'ph';
+    document.body.appendChild(d);
+    io.observe(d);
+  }
+</script>
+</body></html>

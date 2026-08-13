@@ -1,0 +1,14 @@
+{
+  "name": "wholepage-extension",
+  "private": true,
+  "version": "0.9.0",
+  "description": "Regression harness for the WholePage extension (the extension itself has no build step)",
+  "type": "module",
+  "scripts": {
+    "test": "node test/run.mjs"
+  },
+  "devDependencies": {
+    "playwright": "^1.62.1",
+    "playwright-core": "^1.48.0"
+  }
+}
