@@ -22,24 +22,43 @@ let captureBusy = false;
 chrome.runtime.onConnect.addListener((port) => {
   if (!port.name.startsWith('wp-result:')) return;
   const id = port.name.slice('wp-result:'.length);
-  const entry = resultPorts.get(id) || { port: null, buffered: [] };
+  const entry = resultPorts.get(id) || { port: null, buffered: [], done: false };
   entry.port = port;
   resultPorts.set(id, entry);
   for (const msg of entry.buffered) port.postMessage(msg);
   entry.buffered = [];
   port.onDisconnect.addListener(() => {
     const cur = resultPorts.get(id);
-    if (cur && cur.port === port) cur.port = null;
+    if (cur && cur.port === port) {
+      cur.port = null;
+      if (cur.done) resultPorts.delete(id); // tab closed after finalize: free the entry
+    }
   });
 });
 
 function sendToResult(id, msg) {
-  const entry = resultPorts.get(id) || { port: null, buffered: [] };
+  const entry = resultPorts.get(id) || { port: null, buffered: [], done: false };
   resultPorts.set(id, entry);
+  if (msg.type === 'finalize' || msg.type === 'fatal') {
+    entry.done = true;
+    // Backstop: a result tab that never connects must not pin buffered PNG
+    // dataURLs in SW memory forever.
+    setTimeout(() => { const e = resultPorts.get(id); if (e && !e.port) resultPorts.delete(id); }, 120000);
+  }
   if (entry.port) {
     try { entry.port.postMessage(msg); return; } catch (_) { entry.port = null; }
   }
   entry.buffered.push(msg);
+}
+
+/** The critical guard: captureVisibleTab shoots the window's ACTIVE tab. If the
+ * user switches tabs mid-capture we must stop — silently stitching (and
+ * potentially saving) another tab's content is a correctness AND privacy bug. */
+async function assertStillActive(tab) {
+  const [active] = await chrome.tabs.query({ active: true, windowId: tab.windowId });
+  if (!active || active.id !== tab.id) {
+    throw new Error('you switched to another tab, so the capture was stopped to avoid photographing the wrong page');
+  }
 }
 
 function notifyPopup(msg) {
@@ -73,10 +92,16 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   }
   if (msg && msg.type === 'start-capture') {
     (async () => {
-      // The popup names its own tab explicitly — never re-derive it here.
-      const tab = msg.tabId != null ? await chrome.tabs.get(msg.tabId) : await activeTab();
-      sendResponse({ started: true });
-      await runCapture(tab, msg.mode);
+      try {
+        // The popup names its own tab explicitly — never re-derive it here.
+        const tab = msg.tabId != null ? await chrome.tabs.get(msg.tabId) : await activeTab();
+        sendResponse({ started: true });
+        await runCapture(tab, msg.mode);
+      } catch (err) {
+        // Nothing may fail silently: the popup shows this instead of hanging.
+        try { sendResponse({ started: false }); } catch (_) {}
+        notifyPopup({ type: 'error', reason: 'Could not start the capture: ' + String((err && err.message) || err) });
+      }
     })();
     return true;
   }
@@ -101,6 +126,7 @@ async function runCapture(tab, mode) {
   let resultTab = null;
   let prepped = false;
   let stage = 'starting';
+  let tilesSent = 0;
   try {
     const restricted = await checkRestricted(tab);
     if (restricted.restricted) {
@@ -146,8 +172,17 @@ async function runCapture(tab, mode) {
 
     // ---- Area select: overlay, then one shot cropped in the result page.
     if (mode === 'area') {
-      const rect = await sendToTab(tab.id, { wp: 'area-select' });
+      // Keepalive: the user may take >30s to drag; without activity the MV3
+      // idle timer would kill this worker mid-wait and the drag would go dead.
+      const keepalive = setInterval(() => chrome.runtime.getPlatformInfo().catch(() => {}), 20000);
+      let rect;
+      try {
+        rect = await sendToTab(tab.id, { wp: 'area-select' });
+      } finally {
+        clearInterval(keepalive);
+      }
       if (!rect || rect.cancelled) return;
+      await assertStillActive(tab);
       const dataUrl = await captureTile(tab.windowId);
       resultTab = await openResult(captureId, tab);
       sendToResult(captureId, { type: 'meta', mode, title: tab.title || 'page', url: tab.url, tiles: 1, cropCss: rect, innerWidthCss: rect.innerWidth });
@@ -168,15 +203,24 @@ async function runCapture(tab, mode) {
     stage = 'lazy-load priming';
     const prime = await sendToTab(tab.id, { wp: 'prime' }); // lazy-load pass; returns final height + growth flag
     if (!prime || prime.error || !prime.totalCss) throw new Error('priming: ' + ((prime && prime.error) || 'no result'));
+    if (prime.scrollLocked) throw new Error('the page refused to scroll — a dialog or scroll lock is probably active. Close any popup on the page and try again');
     stage = 'fixed-element scan';
     await sendToTab(tab.id, { wp: 'mark-fixed' }); // walk AFTER priming: catches scroll-swapped sticky headers
 
+    const MAX_TILES = 300; // ≥600ms each — beyond this the wait stops being honest
     const totalCss = prime.totalCss;
     const stepCss = m.viewportCss;
     const positions = [];
     for (let y = 0; y + stepCss < totalCss; y += stepCss) positions.push(y);
     positions.push(Math.max(0, totalCss - stepCss));
     if (positions.length > 1 && positions[positions.length - 1] === positions[positions.length - 2]) positions.pop();
+    const capped = positions.length > MAX_TILES;
+    if (capped) positions.length = MAX_TILES;
+
+    const notes = [];
+    if (prime.infinite) notes.push('This page keeps loading more content as it scrolls. WholePage captured everything that was loaded (' + Math.round(totalCss) + 'px). Need more? Scroll further down first, then capture again.');
+    if (capped) notes.push(`This page is extremely long — WholePage captured the first ${MAX_TILES} screens rather than freeze your browser for minutes.`);
+    if (m.scrollWidthCss > m.clientWidthCss + 50) notes.push('This page is wider than the window; WholePage captured the visible width.');
 
     resultTab = await openResult(captureId, tab);
     sendToResult(captureId, {
@@ -184,15 +228,17 @@ async function runCapture(tab, mode) {
       widthCss: m.clientWidthCss, totalCss, viewportCss: m.viewportCss,
       innerWidthCss: m.innerWidthCss, pageViewportCss: m.pageViewportCss,
       scroller: m.scroller, scrollerRect: m.scrollerRect,
-      note: prime.infinite ? 'This page keeps loading more content as it scrolls. WholePage captured everything that was loaded (' + Math.round(totalCss) + 'px). Need more? Scroll further down first, then capture again.' : null,
+      note: notes.length ? notes.join(' ') : null,
     });
 
     for (let i = 0; i < positions.length; i++) {
       stage = `tile ${i + 1}/${positions.length}`;
       const res = await sendToTab(tab.id, { wp: 'scroll-to', y: positions[i], settle: true });
       if (i === 1) await sendToTab(tab.id, { wp: 'hide-fixed' }); // visible in tile 1 only (pain #4)
+      await assertStillActive(tab); // never photograph a tab the user switched to
       const dataUrl = await captureTile(tab.windowId);
       sendToResult(captureId, { type: 'tile', index: i, actualY: res.actualY, dataUrl });
+      tilesSent++;
       await setBadge(tab.id, `${i + 1}/${positions.length}`);
       notifyPopup({ type: 'progress', done: i + 1, total: positions.length });
     }
@@ -205,20 +251,30 @@ async function runCapture(tab, mode) {
   } catch (err) {
     const reason = `at stage "${stage}": ` + String((err && err.message) || err);
     console.error('[WholePage] capture failed', reason, err);
-    // Fallback chain: if full-page failed mid-way, deliver the visible area with the reason.
+    // Fallback chain, hardened by review:
+    // - tiles already streamed → finalize the PARTIAL capture with a warning;
+    //   never send a second meta that would corrupt the assembled result.
+    // - nothing streamed → visible-area fallback, but ONLY if the target tab is
+    //   still the active one (never photograph an unrelated tab).
     try {
       if (prepped) { await sendToTab(tab.id, { wp: 'restore' }); prepped = false; }
     } catch (_) { /* page may have navigated */ }
     try {
-      if (!resultTab) resultTab = await openResult(captureId, tab);
-      const dataUrl = await captureTile(tab.windowId).catch(() => null);
-      if (dataUrl) {
-        sendToResult(captureId, { type: 'meta', mode: 'visible', title: tab.title || 'page', url: tab.url, tiles: 1, noteLevel: 'warn', note: `Full-page capture failed ${reason} — WholePage captured the visible area instead. Please report this at the project page; the quoted stage pinpoints the bug.` });
-        sendToResult(captureId, { type: 'tile', index: 0, actualY: 0, dataUrl });
+      if (tilesSent > 0) {
+        sendToResult(captureId, { type: 'abort-note', note: `Capture stopped ${reason}. Everything captured up to that point is below.` });
         sendToResult(captureId, { type: 'finalize' });
-        await chrome.tabs.update(resultTab.id, { active: true });
+        if (resultTab) await chrome.tabs.update(resultTab.id, { active: true });
       } else {
-        sendToResult(captureId, { type: 'fatal', reason });
+        if (!resultTab) resultTab = await openResult(captureId, tab);
+        const stillActive = await chrome.tabs.query({ active: true, windowId: tab.windowId }).then(([a]) => a && a.id === tab.id).catch(() => false);
+        const dataUrl = stillActive ? await captureTile(tab.windowId).catch(() => null) : null;
+        if (dataUrl) {
+          sendToResult(captureId, { type: 'meta', mode: 'visible', title: tab.title || 'page', url: tab.url, tiles: 1, noteLevel: 'warn', note: `Full-page capture failed ${reason} — WholePage captured the visible area instead. Please report this at the project page; the quoted stage pinpoints the bug.` });
+          sendToResult(captureId, { type: 'tile', index: 0, actualY: 0, dataUrl });
+          sendToResult(captureId, { type: 'finalize' });
+        } else {
+          sendToResult(captureId, { type: 'fatal', reason });
+        }
         await chrome.tabs.update(resultTab.id, { active: true });
       }
     } catch (_) {

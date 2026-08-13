@@ -1,8 +1,12 @@
 // Popup: pre-flight → mode buttons → live progress.
 // Restricted pages get a designed explanation BEFORE any click fails (pain #17).
+// Hardened by review: a watchdog kills the dead-end progress screen, and
+// broadcast messages from captures this popup did not start are ignored.
 'use strict';
 
 const $ = (id) => document.getElementById(id);
+let startedHere = false; // only react to progress/error for OUR capture
+let watchdog = 0;
 
 async function preflight() {
   try {
@@ -13,14 +17,22 @@ async function preflight() {
       $('blocked').hidden = false;
       $('mode-full').disabled = true;
       $('mode-area').disabled = true;
-      // Visible-area capture still works on file:// without access etc.? No —
-      // restricted means no capture at all; disable everything.
       $('mode-visible').disabled = true;
     }
   } catch (_) { /* service worker waking up; buttons stay enabled */ }
 }
 
+function showError(text) {
+  clearTimeout(watchdog);
+  $('progress').hidden = true;
+  $('modes').hidden = false;
+  $('error').textContent = text;
+  $('error').hidden = false;
+}
+
 async function start(mode) {
+  startedHere = true;
+  $('error').hidden = true; // never show a stale failure next to a new attempt
   $('modes').hidden = true;
   $('progress').hidden = false;
   $('progress-text').textContent = mode === 'full' ? 'Capturing full page…' : 'Capturing…';
@@ -32,20 +44,26 @@ async function start(mode) {
     tabId = tab && tab.id;
   } catch (_) {}
   chrome.runtime.sendMessage({ type: 'start-capture', mode, tabId }).catch(() => {});
-  if (mode !== 'full') setTimeout(() => window.close(), 150);
+  if (mode !== 'full') {
+    setTimeout(() => window.close(), 150);
+  } else {
+    // Watchdog: if the SW dies before any progress arrives, do not hang forever.
+    watchdog = setTimeout(() => {
+      showError('The capture did not start. Reload the page and try again — pages opened before WholePage was installed need one reload.');
+    }, 12000);
+  }
 }
 
 chrome.runtime.onMessage.addListener((msg) => {
+  if (!startedHere) return; // a capture from an earlier popup session is not ours
   if (msg && msg.type === 'progress') {
+    clearTimeout(watchdog);
     $('progress-text').textContent = `Capturing tile ${msg.done} of ${msg.total}…`;
     $('progress-fill').style.width = Math.round((msg.done / msg.total) * 100) + '%';
     if (msg.done === msg.total) setTimeout(() => window.close(), 400);
   }
   if (msg && msg.type === 'error') {
-    $('progress').hidden = true;
-    $('modes').hidden = false;
-    $('error').textContent = msg.reason + (msg.hint ? ' ' + msg.hint : '');
-    $('error').hidden = false;
+    showError(msg.reason + (msg.hint ? ' ' + msg.hint : ''));
   }
 });
 

@@ -5,7 +5,7 @@
 **Name:** `WholePage – Full Page Screenshot & Screen Capture`
 
 **Short description (132 chars max):**
-> Full-page screenshots that actually work. 100% local, no account, no watermark, no tracking. Open source, activeTab-only.
+> Full-page screenshots that actually work. 100% local, no account, no watermark, no tracking. Open source, minimal permissions.
 
 **Category:** Tools. **Language:** English.
 
@@ -30,7 +30,7 @@
 
 **Screenshots (1280×800, in order):**
 1. One-click full-page capture of a long real page, result tab assembling progressively
-2. The install permission prompt (nothing scary) side-by-side with a typical "Read and change all your data on all websites" prompt, caption "activeTab only"
+2. The install permission prompt (only the "Manage your downloads" warning — Chrome shows it for the save-file permission) side-by-side with a typical "Read and change all your data on all websites" prompt, caption "cannot see your browsing"
 3. Sticky-header before/after (fence vs. once at top)
 4. The oversize-page choice dialog (PDF / slices / downscale — "never cut off silently")
 5. The FREE-FOREVER list as a graphic

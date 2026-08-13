@@ -10,7 +10,13 @@ There is no account system. Nothing you capture ever leaves your machine.
 This is verifiable, not just promised: the extension requests no host
 permissions (so it has no standing ability to talk to any website), the full
 source code is public, and you can open DevTools during any capture and observe
-that no requests are made.
+that no request ever goes to any server. (You will see internal `data:` and
+`blob:` entries in the Network panel — those are the extension handing image
+bytes to itself inside your browser; they involve no network connection and
+nothing leaves your device.)
+
+Settings are stored with `chrome.storage.local` — deliberately not the synced
+variant, which would upload them to your Google account.
 
 The `activeTab` permission means WholePage can only see a page at the moment you
 explicitly invoke it on that page — it cannot read your browsing, and it has no

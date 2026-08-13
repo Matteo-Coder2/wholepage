@@ -214,6 +214,67 @@ async function testInfinite(context) {
   await result.close(); await page.close();
 }
 
+async function testTransformedFixed(context) {
+  // position:fixed inside a transformed ancestor scrolls WITH the page — it is
+  // normal content and must appear exactly once, never hidden or repeated.
+  const { page, result } = await capture(context, `http://127.0.0.1:${PORT}/transformed-fixed.html`);
+  const r = await result.evaluate(`(() => { ${PROBES}
+    const x = T.state.W / 2;
+    return {
+      green: runsOf([0,160,0], x),
+      cyan: runsOf([0,220,220], x),
+      purple: runsOf([128,0,255], x),
+      greenAtFlow: near(px(x, 225 * T.state.s), [0,160,0]),
+    };
+  })()`);
+  report('transformed-fixed: green bar once', r.green === 1, `${r.green} runs`);
+  report('transformed-fixed: green bar at its flow position', r.greenAtFlow);
+  report('transformed-fixed: cyan bar once (not hidden as bottom bar)', r.cyan === 1, `${r.cyan} runs`);
+  report('transformed-fixed: deep purple bar once (not hidden)', r.purple === 1, `${r.purple} runs`);
+  await result.close(); await page.close();
+}
+
+async function testShadowSticky(context) {
+  // Sticky header inside an open shadow root: stylesheet hiding cannot reach
+  // it; the inline-style unstick must, and it must appear exactly once at top.
+  const { page, result } = await capture(context, `http://127.0.0.1:${PORT}/shadow-sticky.html`);
+  const r = await result.evaluate(`(() => { ${PROBES}
+    const x = T.state.W / 2;
+    return {
+      runs: runsOf([0,200,0], x),
+      atTop: near(px(x, 22 * T.state.s), [0,200,0]),
+    };
+  })()`);
+  report('shadow-sticky: header appears exactly once', r.runs === 1, `${r.runs} runs`);
+  report('shadow-sticky: header at the top', r.atTop);
+  await result.close(); await page.close();
+}
+
+async function testModalDialog(context) {
+  // Full-screen modal <dialog> open during capture: dialog once at top, page
+  // content below undimmed (its ::backdrop must be neutralized after tile 1).
+  const { page, result } = await capture(context, `http://127.0.0.1:${PORT}/modal-dialog.html`);
+  const r = await result.evaluate(`(() => { ${PROBES}
+    const s = T.state.s;
+    const x = T.state.W / 2;
+    const vp = T.state.meta.viewportCss * s;
+    let magentaBelow = 0;
+    for (let y = vp; y < T.state.totalH; y += 3) {
+      if (near(px(x, y), [200,0,200])) magentaBelow++;
+    }
+    return {
+      totalH: T.state.totalH, expected: Math.round(5000 * s),
+      magentaTop: near(px(x, 20 * s), [200,0,200]),
+      magentaBelow,
+      rowUndimmed: near(px(x, T.state.totalH - 60 * s), [215,225,240], 20) || near(px(x, T.state.totalH - 60 * s), [235,235,215], 20),
+    };
+  })()`);
+  report('modal: full height captured (no scroll-lock false positive)', Math.abs(r.totalH - r.expected) <= 8, `${r.totalH} vs ${r.expected}`);
+  report('modal: dialog appears once at top', r.magentaTop && r.magentaBelow === 0, `${r.magentaBelow} magenta rows below viewport`);
+  report('modal: content below undimmed (backdrop neutralized)', r.rowUndimmed);
+  await result.close(); await page.close();
+}
+
 async function testCropScroll(context) {
   // User-reported: a crop selection must be able to extend past the visible
   // screen — dragging into the bottom edge auto-scrolls the page.
@@ -310,6 +371,9 @@ try {
   if (want('lazy')) await testLazy(ctx1);
   if (want('inner')) await testInner(ctx1);
   if (want('infinite')) await testInfinite(ctx1);
+  if (want('transformed')) await testTransformedFixed(ctx1);
+  if (want('shadowsticky')) await testShadowSticky(ctx1);
+  if (want('modal')) await testModalDialog(ctx1);
   if (want('cropscroll')) await testCropScroll(ctx1);
   if (want('clipboard')) await testClipboardRoundtrip(ctx1);
   await ctx1.close();

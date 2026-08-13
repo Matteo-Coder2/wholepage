@@ -39,6 +39,7 @@
     wp.state.scroller = scroller;
     wp.state.startScrollY = wp.getScrollY();
     wp.state.startWindowScrollY = window.scrollY || 0;
+    wp.state.startScrollX = window.scrollX || 0;
 
     const se = document.scrollingElement || document.documentElement;
     const isWindow = scroller === 'window';
@@ -46,10 +47,13 @@
     return {
       scroller: isWindow ? 'window' : 'element',
       scrollerRect: rect ? { top: rect.top, left: rect.left, bottom: rect.bottom, right: rect.right } : null,
-      viewportCss: isWindow ? window.innerHeight : scroller.clientHeight,
+      // clientHeight, NOT innerHeight: innerHeight includes a horizontal
+      // scrollbar, which would otherwise be stamped into every stitch seam.
+      viewportCss: isWindow ? se.clientHeight : scroller.clientHeight,
       pageViewportCss: window.innerHeight,
       totalCss: isWindow ? se.scrollHeight : scroller.scrollHeight,
       clientWidthCss: se.clientWidth,
+      scrollWidthCss: se.scrollWidth,
       innerWidthCss: window.innerWidth,
       dpr: window.devicePixelRatio || 1,
       title: document.title || location.hostname,

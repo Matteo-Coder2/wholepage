@@ -24,10 +24,11 @@ const state = {
   crop: null,            // {x, y, w, h} device px
   croppedView: null,
   settings: { filenameTemplate: '{title} {date}', jpegQuality: 0.92 },
-  opfsDir: null,
 };
 
-chrome.storage.sync.get(state.settings).then((s) => { state.settings = s; });
+// storage.LOCAL, never sync — sync would upload settings to the user's Google
+// account, contradicting "nothing leaves your device".
+chrome.storage.local.get(state.settings).then((s) => { state.settings = s; });
 
 // ---------- band plumbing ----------
 function bandFor(y) {
@@ -66,12 +67,13 @@ function drawToBands(bmp, srcX, srcY, w, h, destY) {
 // ---------- tile geometry ----------
 async function onTile(msg) {
   const bmp = await createImageBitmap(await (await fetch(msg.dataUrl)).blob());
-  persistTile(msg.index, msg.dataUrl); // crash-safety, fire and forget
   const m = state.meta;
 
   if (state.s === null) {
     // Empirical scale: absorbs DPR × browser zoom × OS scaling in one number.
-    state.s = m.innerWidthCss ? bmp.width / m.innerWidthCss : 1;
+    // Visible/fallback captures carry no page width — the result page's own
+    // devicePixelRatio (same display) keeps PDF page sizes physical.
+    state.s = m.innerWidthCss ? bmp.width / m.innerWidthCss : (self.devicePixelRatio || 1);
     if (m.mode === 'full') {
       state.W = Math.min(bmp.width, Math.round(m.widthCss * state.s));
       state.totalH = computeTotalH(m);
@@ -116,8 +118,16 @@ function drawWindowTile(bmp, msg) {
   if (destY < state.cursorY) {         // final tile overlaps: crop the SOURCE top
     srcTop = state.cursorY - destY;
     destY = state.cursorY;
+  } else if (destY > state.cursorY && destY - state.cursorY <= 3 && state.cursorY > 0) {
+    destY = state.cursorY;             // fractional-zoom rounding gap: snap shut, no white seam
   }
-  const drawH = Math.min(bmp.height - srcTop, state.totalH - destY);
+  // The bitmap can be taller than the scroll step (innerHeight includes a
+  // horizontal scrollbar; the step uses clientHeight) — cap the source so the
+  // scrollbar strip is never stitched in.
+  const usableH = state.meta.viewportCss
+    ? Math.min(bmp.height, Math.round(state.meta.viewportCss * state.s))
+    : bmp.height;
+  const drawH = Math.min(usableH - srcTop, state.totalH - destY);
   if (drawH <= 0) return;
   drawToBands(bmp, 0, srcTop, state.W, drawH, destY);
   state.cursorY = destY + drawH;
@@ -193,7 +203,10 @@ function filename(ext) {
   let host = '';
   try { host = new URL(state.meta.url).hostname; } catch (_) {}
   const raw = t.replaceAll('{title}', state.meta.title || 'page').replaceAll('{date}', date).replaceAll('{host}', host);
-  return raw.replace(/[\\/:*?"<>|\x00-\x1f]/g, '-').slice(0, 120).trim() + '.' + ext;
+  let stem = raw.replace(/[\\/:*?"<>|\x00-\x1f]/g, '-').trim().replace(/^[.\s]+/, '');
+  stem = Array.from(stem).slice(0, 120).join('').trim(); // code-POINT slice: never splits an emoji
+  if (!stem) stem = 'capture'; // empty titles / dot-only names must still download
+  return stem + '.' + ext;
 }
 
 async function download(blob, name) {
@@ -338,18 +351,23 @@ function cropUp(e) {
   if (!cropDrag) return;
   const start = cropDrag.startStage;
   const end = toStage(e.clientX, e.clientY);
-  const scale = state.W / stageRectNow().width; // display px → device px
+  // Convert relative to what the stage currently SHOWS — after a first crop
+  // that is the cropped region, so a refinement crop must offset into it and
+  // scale by ITS width, not the full image's.
+  const base = effective();
+  const scale = base.w / stageRectNow().width; // display px → device px of the shown region
   exitCropMode();
-  const a = { x: Math.min(start.x, end.x) * scale, y: Math.min(start.y, end.y) * scale };
-  const b = { x: Math.max(start.x, end.x) * scale, y: Math.max(start.y, end.y) * scale };
-  if (b.x - a.x < 8 || b.y - a.y < 8) { flash('Selection too small — crop cancelled'); return; }
-  state.crop = {
-    x: Math.round(a.x),
-    y: Math.round(a.y),
-    w: Math.round(Math.min(state.W, b.x) - a.x),
-    h: Math.round(Math.min(state.totalH, b.y) - a.y),
-  };
-  const view = compose();
+  // Round the corners, derive the size — x+w may never exceed the base edge.
+  const x1 = Math.round(Math.min(start.x, end.x) * scale);
+  const y1 = Math.round(Math.min(start.y, end.y) * scale);
+  const x2 = Math.min(base.w, Math.round(Math.max(start.x, end.x) * scale));
+  const y2 = Math.min(base.h, Math.round(Math.max(start.y, end.y) * scale));
+  if (x2 - x1 < 8 || y2 - y1 < 8) { flash('Selection too small — crop cancelled'); return; }
+  state.crop = { x: base.x + x1, y: base.y + y1, w: x2 - x1, h: y2 - y1 };
+  // Display: always fits (downscaled if the cropped region is still huge).
+  let fit = 1;
+  while (!fitsSingle(state.crop, fit)) fit *= 0.75;
+  const view = compose(fit);
   $('stage').replaceChildren(view);
   state.croppedView = view;
   $('btn-reset').hidden = false;
@@ -375,7 +393,9 @@ function cropEsc(e) {
 
 function startCrop() {
   if (cropping) { exitCropMode(); flash('Crop cancelled'); return; }
-  if (!fitsSingle(effective())) { $('oversize').hidden = false; return; }
+  // Oversize captures MAY be cropped — that is exactly how a user cuts a
+  // too-tall capture down to a savable region. The drag works on the band
+  // canvases; only the post-crop display is (down)scaled to fit.
   cropping = true;
   document.body.classList.add('cropping');
   $('crop-tip').hidden = false;
@@ -408,20 +428,13 @@ function resetCrop() {
   flash('Crop removed');
 }
 
-// ---------- crash-safety tile persistence (OPFS) ----------
-async function persistTile(index, dataUrl) {
-  try {
-    if (!state.opfsDir) {
-      const root = await navigator.storage.getDirectory();
-      const dir = await root.getDirectoryHandle('captures', { create: true });
-      state.opfsDir = await dir.getDirectoryHandle(captureId, { create: true });
-    }
-    const fh = await state.opfsDir.getFileHandle(`tile-${index}.png`, { create: true });
-    const w = await fh.createWritable();
-    await w.write(await (await fetch(dataUrl)).blob());
-    await w.close();
-  } catch (_) { /* persistence is best-effort */ }
-}
+// OPFS tile persistence was REMOVED after review: it was write-only (no
+// recovery path existed), so it silently accumulated every screenshot ever
+// taken in hidden storage — a disk leak and a residual-privacy problem for
+// zero benefit. Clean up anything an earlier version left behind.
+navigator.storage.getDirectory()
+  .then((root) => root.removeEntry('captures', { recursive: true }))
+  .catch(() => {});
 
 // ---------- wiring ----------
 const port = chrome.runtime.connect({ name: 'wp-result:' + captureId });
@@ -445,6 +458,10 @@ async function pump() {
         }
       } else if (msg.type === 'tile') {
         await onTile(msg);
+      } else if (msg.type === 'abort-note') {
+        $('note').textContent = '⚠ ' + msg.note;
+        $('note').classList.add('warn');
+        $('note').hidden = false;
       } else if (msg.type === 'finalize') {
         state.finalized = true;
         $('status').textContent = `Done — ${Math.round(state.W)}×${Math.round(state.totalH)}px`;

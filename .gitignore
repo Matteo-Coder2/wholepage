@@ -1,5 +1,8 @@
 node_modules/
 .test-build/
 test/.profile/
+test/debug-*.png
+.claude-flow/
+**/.claude-flow/
 *.zip
 .DS_Store

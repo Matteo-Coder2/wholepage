@@ -1,0 +1,21 @@
+<!DOCTYPE html><html><head><meta charset="utf-8"><style>
+  body { margin: 0; }
+</style></head><body>
+<div id="host"></div>
+<script>
+  // Sticky header lives inside an OPEN shadow root. The window is the scroller,
+  // so the header sticks to the viewport top and must appear exactly once in the
+  // output. Document-level <style> injection does NOT penetrate shadow DOM —
+  // an engine that hides fixed/sticky elements with a page-level stylesheet
+  // will stamp this header into every tile.
+  const root = document.getElementById('host').attachShadow({ mode: 'open' });
+  let rows = '';
+  for (let i = 0; i < 60; i++) {
+    rows += `<div class="row" style="background:${i % 2 ? 'rgb(225,225,225)' : 'rgb(205,215,235)'}"></div>`;
+  }
+  root.innerHTML = `<style>
+    #shead { position: sticky; top: 0; height: 44px; background: rgb(0,200,0); z-index: 5; }
+    .row { height: 100px; }
+  </style><div id="shead"></div>${rows}`;
+</script>
+</body></html>

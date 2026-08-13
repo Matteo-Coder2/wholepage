@@ -70,7 +70,16 @@ export async function checkRestricted(tab) {
  * injection failure rather than by URL sniffing (a .pdf URL can be an HTML page).
  */
 export function explainInjectionFailure(url, errMessage) {
-  if (/\.pdf(\?|#|$)/i.test(url) || /cannot be scripted|showing error page|chrome error/i.test(errMessage || '')) {
+  // Order matters: Chrome's error pages ("Frame ... is showing error page")
+  // must not be misread as the PDF viewer.
+  if (/showing error page|chrome error/i.test(errMessage || '')) {
+    return {
+      reason: 'This tab is showing a browser error page (the page failed to load), so there is nothing to capture yet.',
+      hint: 'Reload the page and try again once it has loaded.',
+      canVisible: true,
+    };
+  }
+  if (/\.pdf(\?|#|$)/i.test(url) || /cannot be scripted/i.test(errMessage || '')) {
     return {
       reason: "Chrome's built-in PDF viewer blocks page scrolling for every extension, so a full-length capture isn't possible here yet.",
       hint: 'The visible area can still be captured. A full-length PDF capture mode is on the roadmap.',

@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "WholePage – Full Page Screenshot & Screen Capture",
   "version": "0.9.0",
-  "description": "Full-page screenshots that actually work. 100% local, no account, no watermark, no tracking. Open source, activeTab-only.",
+  "description": "Full-page screenshots that actually work. 100% local, no account, no watermark, no tracking. Open source, minimal permissions.",
   "minimum_chrome_version": "116",
   "permissions": ["activeTab", "scripting", "downloads", "storage"],
   "background": {

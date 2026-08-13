@@ -34,6 +34,24 @@
     let prevTotal = total;
     let growthStreak = 0;
 
+    // Scroll-lock probe: pages with a modal open (body overflow:hidden or a
+    // scroll trap) report a tall scrollHeight but refuse to actually scroll —
+    // without this check the capture would "succeed" as N identical tiles.
+    if (total > viewport * 1.5) {
+      wp.setScrollY(viewport);
+      await wp.raf2();
+      if (wp.getScrollY() < viewport * 0.25) {
+        wp.setScrollY(viewport); // one retry — some pages settle layout late
+        await wp.raf2();
+        if (wp.getScrollY() < viewport * 0.25) {
+          wp.setScrollY(0);
+          return { totalCss: total, infinite: false, scrollLocked: true };
+        }
+      }
+      wp.setScrollY(0);
+      await wp.raf2();
+    }
+
     let y = 0;
     while (y < total - viewport && Date.now() < passDeadline) {
       y += viewport;

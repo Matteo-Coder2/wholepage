@@ -1,0 +1,20 @@
+<!DOCTYPE html><html><head><meta charset="utf-8"><style>
+  /* Horizontal overflow: content is 3000px wide, far wider than the window.
+     The harness scrolls right BEFORE capturing. Things that can break:
+     scrollTo(0, y) during tiling/restore silently destroys scrollX, and the
+     output is truncated to viewport width with no warning. */
+  body { margin: 0; }
+  #wide { width: 3000px; height: 4500px; display: flex; }
+  .col { width: 200px; height: 100%; }
+</style></head><body>
+<div id="wide"></div>
+<script>
+  const w = document.getElementById('wide');
+  for (let i = 0; i < 15; i++) {
+    const d = document.createElement('div');
+    d.className = 'col';
+    d.style.background = `hsl(${(i * 53) % 360} 70% 60%)`;
+    w.appendChild(d);
+  }
+</script>
+</body></html>

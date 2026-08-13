@@ -1,0 +1,32 @@
+<!DOCTYPE html><html><head><meta charset="utf-8"><style>
+  /* position:fixed inside a CSS-transformed ancestor is NOT viewport-anchored:
+     the transform makes the ancestor the containing block, so these bars scroll
+     WITH the page like normal content. An engine that trusts computedStyle
+     position alone will misclassify them. */
+  body { margin: 0; }
+  .filler { height: 100px; }
+  .wrap { transform: translateZ(0); position: relative; background: rgb(235,235,235); }
+  .ghost { position: fixed; top: 0; left: 0; right: 0; }
+  #ghost-top  { height: 50px; background: rgb(0,160,0); }    /* at css y 200 */
+  #ghost-mid  { height: 60px; background: rgb(0,220,220); }  /* at css y 600 — below 0.6*vh at load */
+  #ghost-deep { height: 60px; background: rgb(128,0,255); }  /* at css y 5000 — far below viewport at load */
+</style></head><body>
+<script>
+  const mk = (h, bg) => { const d = document.createElement('div'); d.style.height = h + 'px'; d.style.background = bg; document.body.appendChild(d); return d; };
+  const filler = (n) => { for (let i = 0; i < n; i++) mk(100, i % 2 ? 'rgb(240,240,220)' : 'rgb(220,230,240)'); };
+  const wrap = (id, wrapH) => {
+    const w = document.createElement('div');
+    w.className = 'wrap'; w.style.height = wrapH + 'px';
+    const g = document.createElement('div');
+    g.className = 'ghost'; g.id = id;
+    w.appendChild(g); document.body.appendChild(w);
+  };
+  filler(2);            // y 0..200
+  wrap('ghost-top', 200);   // green bar renders at y 200..250 (scrolls with page)
+  filler(2);            // y 400..600
+  wrap('ghost-mid', 200);   // cyan bar renders at y 600..660
+  filler(42);           // y 800..5000
+  wrap('ghost-deep', 200);  // purple bar renders at y 5000..5060
+  filler(10);           // y 5200..6200
+</script>
+</body></html>

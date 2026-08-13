@@ -1,0 +1,18 @@
+<!DOCTYPE html><html><head><meta charset="utf-8"><style>
+  body { margin: 0; }
+  .band { height: 87px; display: flex; align-items: center; padding-left: 20px;
+          font: 700 20px monospace; color: rgba(0,0,0,.55); }
+</style></head><body>
+<script>
+  // 130 bands of 87px = 11,310px. 87 is deliberately NOT a multiple of 5, so at
+  // deviceScaleFactor 0.8 (80% zoom) every band boundary lands on a fractional
+  // device-pixel row (87 * 0.8 = 69.6) — worst case for seam rounding math.
+  for (let i = 0; i < 130; i++) {
+    const d = document.createElement('div');
+    d.className = 'band';
+    d.style.background = `hsl(${(i * 47) % 360} 80% 60%)`;
+    d.textContent = i * 87;
+    document.body.appendChild(d);
+  }
+</script>
+</body></html>

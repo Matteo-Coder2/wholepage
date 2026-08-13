@@ -2,15 +2,19 @@
 
 const DEFAULTS = { filenameTemplate: '{title} {date}', jpegQuality: 0.92 };
 
+// storage.LOCAL, never sync — sync would upload settings to the user's Google
+// account, contradicting "nothing leaves your device".
 async function load() {
-  const s = await chrome.storage.sync.get(DEFAULTS);
+  const s = await chrome.storage.local.get(DEFAULTS);
   document.getElementById('filenameTemplate').value = s.filenameTemplate;
   document.getElementById('jpegQuality').value = String(s.jpegQuality);
 }
 
 document.getElementById('save').onclick = async () => {
-  await chrome.storage.sync.set({
-    filenameTemplate: document.getElementById('filenameTemplate').value || DEFAULTS.filenameTemplate,
+  await chrome.storage.local.set({
+    // trim() first: a whitespace-only template is truthy but produces
+    // an unusable empty filename downstream.
+    filenameTemplate: document.getElementById('filenameTemplate').value.trim() || DEFAULTS.filenameTemplate,
     jpegQuality: Number(document.getElementById('jpegQuality').value) || DEFAULTS.jpegQuality,
   });
   const saved = document.getElementById('saved');

@@ -1,0 +1,16 @@
+<!DOCTYPE html><html dir="rtl"><head><meta charset="utf-8"><style>
+  /* RTL document with a CLASSIC (layout-consuming) scrollbar: styling
+     ::-webkit-scrollbar forces Chrome off overlay scrollbars, and in RTL the
+     vertical scrollbar sits on the LEFT. Engines that assume "content starts
+     at bitmap x=0, scrollbar is on the right" ship the scrollbar in the output
+     and clip the right content edge. */
+  ::-webkit-scrollbar { width: 16px; background: rgb(40,40,40); }
+  ::-webkit-scrollbar-thumb { background: rgb(90,90,90); }
+  html, body { margin: 0; }
+  body { background: rgb(0,100,200); }
+  #tall { height: 6000px; }
+  #edge { position: absolute; top: 0; right: 0; width: 40px; height: 6000px; background: rgb(255,200,0); }
+</style></head><body>
+<div id="tall"></div>
+<div id="edge"></div>
+</body></html>
