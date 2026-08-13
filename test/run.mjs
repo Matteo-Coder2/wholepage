@@ -214,6 +214,33 @@ async function testInfinite(context) {
   await result.close(); await page.close();
 }
 
+async function testCropScroll(context) {
+  // User-reported: a crop selection must be able to extend past the visible
+  // screen — dragging into the bottom edge auto-scrolls the page.
+  const { page, result } = await capture(context, `http://127.0.0.1:${PORT}/fixed.html`);
+  await result.bringToFront(); // rAF-driven auto-scroll needs a foreground page
+  const r = await result.evaluate(async () => {
+    const sleep = (ms) => new Promise((res) => setTimeout(res, ms));
+    document.getElementById('btn-crop').click();
+    const layer = document.getElementById('crop-layer');
+    const stage = document.getElementById('stage').getBoundingClientRect();
+    const x0 = Math.round(stage.left + stage.width * 0.15);
+    const x1 = Math.round(stage.left + stage.width * 0.85); // diagonal drag, like a real user
+    layer.dispatchEvent(new MouseEvent('mousedown', { clientX: x0, clientY: 120, bubbles: true }));
+    window.dispatchEvent(new MouseEvent('mousemove', { clientX: x1, clientY: innerHeight - 10 }));
+    await sleep(1500); // auto-scroll runs
+    const scrolled = scrollY;
+    const scale = globalThis.__wpResultTest.state.W / document.getElementById('stage').getBoundingClientRect().width;
+    window.dispatchEvent(new MouseEvent('mouseup', { clientX: x1, clientY: innerHeight - 10 }));
+    return { scrolled, scale, crop: globalThis.__wpResultTest.state.crop, innerH: innerHeight };
+  });
+  report('crop-scroll: page auto-scrolled during drag', r.scrolled > 300, `${r.scrolled}px scrolled`);
+  const hDisplay = r.crop ? r.crop.h / r.scale : 0;
+  report('crop-scroll: selection taller than one screen', !!r.crop && hDisplay > r.innerH * 1.3,
+    r.crop ? `${Math.round(hDisplay)}px selected vs ${r.innerH}px screen` : 'no crop applied');
+  await result.close(); await page.close();
+}
+
 async function testClipboardRoundtrip(context) {
   const { page, result } = await capture(context, `http://127.0.0.1:${PORT}/fixed.html`, 'visible');
   await context.grantPermissions(['clipboard-read', 'clipboard-write']);
@@ -283,6 +310,7 @@ try {
   if (want('lazy')) await testLazy(ctx1);
   if (want('inner')) await testInner(ctx1);
   if (want('infinite')) await testInfinite(ctx1);
+  if (want('cropscroll')) await testCropScroll(ctx1);
   if (want('clipboard')) await testClipboardRoundtrip(ctx1);
   await ctx1.close();
 

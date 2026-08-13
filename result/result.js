@@ -286,6 +286,75 @@ async function saveScaled() {
 // banner, dims the image, and arms Esc — "I clicked Crop and nothing happened"
 // was a real user report against the invisible-layer version.
 let cropping = false;
+let cropDrag = null; // { startStage, lastClient, raf } while a drag is live
+
+// All selection math lives in STAGE coordinates (relative to the image), not
+// client coordinates — that is what lets the page auto-scroll mid-drag while
+// the anchored corner stays put.
+const stageRectNow = () => $('stage').getBoundingClientRect();
+function toStage(cx, cy) {
+  const r = stageRectNow();
+  return {
+    x: Math.max(0, Math.min(r.width, cx - r.left)),
+    y: Math.max(0, Math.min(r.height, cy - r.top)),
+  };
+}
+
+function renderCropBox() {
+  if (!cropDrag) return;
+  const box = $('crop-layer').firstChild;
+  const cur = toStage(cropDrag.lastClient.x, cropDrag.lastClient.y);
+  const r = stageRectNow();
+  const lr = $('crop-layer').getBoundingClientRect();
+  box.style.left = Math.min(cropDrag.startStage.x, cur.x) + (r.left - lr.left) + 'px';
+  box.style.top = Math.min(cropDrag.startStage.y, cur.y) + (r.top - lr.top) + 'px';
+  box.style.width = Math.abs(cur.x - cropDrag.startStage.x) + 'px';
+  box.style.height = Math.abs(cur.y - cropDrag.startStage.y) + 'px';
+}
+
+// While dragging near the top/bottom edge of the window, scroll the page so a
+// selection can extend beyond what is currently on screen (user request).
+function cropAutoScroll() {
+  if (!cropDrag) return;
+  const EDGE = 80;   // px-wide hot zone at each edge
+  const TOP = 64;    // sticky action bar height
+  const MAXV = 42;   // px/frame at full proximity
+  const y = cropDrag.lastClient.y;
+  let v = 0;
+  if (y > innerHeight - EDGE) v = MAXV * Math.min(1, (y - (innerHeight - EDGE)) / EDGE);
+  else if (y < TOP + EDGE) v = -MAXV * Math.min(1, (TOP + EDGE - y) / EDGE);
+  if (v) { window.scrollBy(0, v); renderCropBox(); }
+  cropDrag.raf = requestAnimationFrame(cropAutoScroll);
+}
+
+function cropMove(e) {
+  if (!cropDrag) return;
+  cropDrag.lastClient = { x: e.clientX, y: e.clientY };
+  renderCropBox();
+  e.preventDefault();
+}
+
+function cropUp(e) {
+  if (!cropDrag) return;
+  const start = cropDrag.startStage;
+  const end = toStage(e.clientX, e.clientY);
+  const scale = state.W / stageRectNow().width; // display px → device px
+  exitCropMode();
+  const a = { x: Math.min(start.x, end.x) * scale, y: Math.min(start.y, end.y) * scale };
+  const b = { x: Math.max(start.x, end.x) * scale, y: Math.max(start.y, end.y) * scale };
+  if (b.x - a.x < 8 || b.y - a.y < 8) { flash('Selection too small — crop cancelled'); return; }
+  state.crop = {
+    x: Math.round(a.x),
+    y: Math.round(a.y),
+    w: Math.round(Math.min(state.W, b.x) - a.x),
+    h: Math.round(Math.min(state.totalH, b.y) - a.y),
+  };
+  const view = compose();
+  $('stage').replaceChildren(view);
+  state.croppedView = view;
+  $('btn-reset').hidden = false;
+  flash('Cropped — Reset to undo');
+}
 
 function exitCropMode() {
   cropping = false;
@@ -294,6 +363,10 @@ function exitCropMode() {
   $('crop-layer').hidden = true;
   $('btn-crop').textContent = 'Crop';
   window.removeEventListener('keydown', cropEsc, true);
+  window.removeEventListener('mousemove', cropMove, true);
+  window.removeEventListener('mouseup', cropUp, true);
+  if (cropDrag && cropDrag.raf) cancelAnimationFrame(cropDrag.raf);
+  cropDrag = null;
 }
 
 function cropEsc(e) {
@@ -311,38 +384,19 @@ function startCrop() {
   const layer = $('crop-layer');
   layer.hidden = false;
   layer.innerHTML = '<div class="box" hidden></div>';
-  const box = layer.firstChild;
-  const stageRect = () => $('stage').getBoundingClientRect();
-  let sx = 0; let sy = 0; let dragging = false;
-  const toDev = (clientX, clientY) => {
-    const sr = stageRect();
-    const scale = state.W / sr.width;
-    return {
-      x: Math.max(0, Math.min(state.W, (clientX - sr.left) * scale)),
-      y: Math.max(0, Math.min(state.totalH, (clientY - sr.top) * scale)),
+  layer.onmousedown = (e) => {
+    cropDrag = {
+      startStage: toStage(e.clientX, e.clientY),
+      lastClient: { x: e.clientX, y: e.clientY },
+      raf: 0,
     };
-  };
-  layer.onmousedown = (e) => { dragging = true; sx = e.clientX; sy = e.clientY; box.hidden = false; };
-  layer.onmousemove = (e) => {
-    if (!dragging) return;
-    const lr = layer.getBoundingClientRect();
-    box.style.left = Math.min(sx, e.clientX) - lr.left + 'px';
-    box.style.top = Math.min(sy, e.clientY) - lr.top + 'px';
-    box.style.width = Math.abs(e.clientX - sx) + 'px';
-    box.style.height = Math.abs(e.clientY - sy) + 'px';
-  };
-  layer.onmouseup = (e) => {
-    dragging = false;
-    exitCropMode();
-    const a = toDev(Math.min(sx, e.clientX), Math.min(sy, e.clientY));
-    const b = toDev(Math.max(sx, e.clientX), Math.max(sy, e.clientY));
-    if (b.x - a.x < 8 || b.y - a.y < 8) { flash('Selection too small — crop cancelled'); return; }
-    state.crop = { x: Math.round(a.x), y: Math.round(a.y), w: Math.round(b.x - a.x), h: Math.round(b.y - a.y) };
-    const view = compose();
-    $('stage').replaceChildren(view);
-    state.croppedView = view;
-    $('btn-reset').hidden = false;
-    flash('Cropped — Reset to undo');
+    layer.firstChild.hidden = false;
+    // Window-level listeners: the drag survives the pointer crossing the
+    // sticky bar or leaving the layer while the page auto-scrolls.
+    window.addEventListener('mousemove', cropMove, true);
+    window.addEventListener('mouseup', cropUp, true);
+    cropDrag.raf = requestAnimationFrame(cropAutoScroll);
+    e.preventDefault();
   };
 }
 
