@@ -71,6 +71,8 @@ if (mode === 'raw') {
   for (let i = 1; i <= 5; i++) {
     await shot({ url: f(`store-assets/stage-${i}.html`), w: 1280, h: 800, dsf: 2, name: `store-${i}.png` });
   }
+  await shot({ url: f('store-assets/tile-small.html'), w: 440, h: 280, dsf: 2, name: 'promo-small.png' });
+  await shot({ url: f('store-assets/tile-marquee.html'), w: 1400, h: 560, dsf: 2, name: 'promo-marquee.png' });
 }
 
 await browser.close();
