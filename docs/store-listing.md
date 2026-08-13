@@ -2,10 +2,15 @@
 
 ## Listing
 
-**Name:** `WholePage – Full Page Screenshot & Screen Capture`
+> **Paste-ready text lives in `copy-paste.md` — that file is the source of truth.**
+> Rewritten 2026-08-13 to be deliberately light: the owner's previous extension
+> was repeatedly rejected for a spammy feature list. One keyword phrase in the
+> title, prose over bullets, no competitor references, no claim-chains.
+
+**Name:** `WholePage – Full Page Screenshot`
 
 **Short description (132 chars max):**
-> Full-page screenshots that actually work. 100% local, no account, no watermark, no tracking. Open source, minimal permissions.
+> Captures the whole page — top to bottom — as one image or PDF. Everything stays on your computer. Free and open source.
 
 **Category:** Tools. **Language:** English.
 
