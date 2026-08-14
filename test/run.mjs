@@ -319,6 +319,31 @@ async function testClipboardRoundtrip(context) {
   await result.close(); await page.close();
 }
 
+async function testPdfBreaks(context) {
+  // A fixed-height PDF split slices text mid-line and every viewer then draws
+  // its page separator through the content (user report). Breaks must land in
+  // the whitespace gaps between dense blocks: gaps sit at [360, 400) on a
+  // 400px CSS period, so a valid cut satisfies (cut/s) mod 400 >= 360.
+  const { page, result } = await capture(context, `http://127.0.0.1:${PORT}/pdfbreaks.html`);
+  const r = await result.evaluate(() => {
+    const T = globalThis.__wpResultTest;
+    const eff = T.effective();
+    const { rects } = WPPageBreak.plan(eff, T.state.s, T.state.bands);
+    return {
+      s: T.state.s, h: eff.h,
+      cuts: rects.slice(0, -1).map((p) => p.y + p.h),
+      sum: rects.reduce((a, p) => a + p.h, 0),
+    };
+  });
+  const cssCuts = r.cuts.map((c) => Math.round(c / r.s));
+  const offGap = cssCuts.filter((c) => c % 400 < 358); // 2px antialias tolerance
+  report('pdfbreaks: multiple pages planned', r.cuts.length >= 2, `${r.cuts.length + 1} pages`);
+  report('pdfbreaks: every break lands in a whitespace gap', offGap.length === 0,
+    `cuts at ${cssCuts.join(', ')} css px`);
+  report('pdfbreaks: page heights cover the capture exactly', r.sum === r.h, `${r.sum} vs ${r.h}`);
+  await result.close(); await page.close();
+}
+
 // ---------- main ----------
 const server = await serve();
 const buildDir = makeTestBuild();
@@ -377,6 +402,7 @@ try {
   if (want('modal')) await testModalDialog(ctx1);
   if (want('cropscroll')) await testCropScroll(ctx1);
   if (want('clipboard')) await testClipboardRoundtrip(ctx1);
+  if (want('pdfbreaks')) await testPdfBreaks(ctx1);
   await ctx1.close();
 
   if (!only || only === 'ruler') {

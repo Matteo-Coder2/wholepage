@@ -238,27 +238,23 @@ async function copyImage() {
   flash('Copied to clipboard ✓');
 }
 
+function regionCanvas(r, y, h) {
+  const canvas = document.createElement('canvas');
+  canvas.width = r.w;
+  canvas.height = h;
+  const ctx = canvas.getContext('2d', { alpha: false });
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(0, 0, r.w, h);
+  WPPageBreak.drawRegion(ctx, state.bands, r, y, h);
+  return canvas;
+}
+
 async function savePdf() {
   const r = effective();
-  const wCss = r.w / (state.s || 1);
-  const pageWPt = wCss * 0.75;
-  const pageHPt = pageWPt * Math.SQRT2; // A-series aspect
-  const chunkH = Math.max(200, Math.round(r.h === 0 ? 1 : (pageHPt / pageWPt) * r.w));
+  const { rects, pageWPt } = WPPageBreak.plan(r, state.s, state.bands);
   const pages = [];
-  for (let y = 0; y < r.h; y += chunkH) {
-    const h = Math.min(chunkH, r.h - y);
-    const canvas = document.createElement('canvas');
-    canvas.width = r.w;
-    canvas.height = h;
-    const ctx = canvas.getContext('2d', { alpha: false });
-    ctx.fillStyle = '#fff';
-    ctx.fillRect(0, 0, r.w, h);
-    for (const band of state.bands) {
-      const top = Math.max(r.y + y, band.y);
-      const bot = Math.min(r.y + y + h, band.y + band.canvas.height);
-      if (bot <= top) continue;
-      ctx.drawImage(band.canvas, r.x, top - band.y, r.w, bot - top, 0, top - (r.y + y), r.w, bot - top);
-    }
+  for (const { y, h } of rects) {
+    const canvas = regionCanvas(r, y, h);
     const jpeg = new Uint8Array(await (await toBlob(canvas, 'image/jpeg', state.settings.jpegQuality)).arrayBuffer());
     pages.push({ jpeg, wPx: r.w, hPx: h, wPt: pageWPt, hPt: (h / r.w) * pageWPt });
   }
@@ -271,16 +267,7 @@ async function saveZip() {
   let n = 1;
   for (let y = 0; y < r.h; y += SLICE_H) {
     const h = Math.min(SLICE_H, r.h - y);
-    const canvas = document.createElement('canvas');
-    canvas.width = r.w;
-    canvas.height = h;
-    const ctx = canvas.getContext('2d', { alpha: false });
-    for (const band of state.bands) {
-      const top = Math.max(r.y + y, band.y);
-      const bot = Math.min(r.y + y + h, band.y + band.canvas.height);
-      if (bot <= top) continue;
-      ctx.drawImage(band.canvas, r.x, top - band.y, r.w, bot - top, 0, top - (r.y + y), r.w, bot - top);
-    }
+    const canvas = regionCanvas(r, y, h);
     files.push({ name: `slice-${String(n++).padStart(2, '0')}.png`, data: new Uint8Array(await (await toBlob(canvas, 'image/png')).arrayBuffer()) });
   }
   await download(WPZip.build(files), filename('zip'));
